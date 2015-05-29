@@ -55,14 +55,14 @@ StoreTrigger::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   std::cout << "In analyze" << std::endl;
   edm::Handle < edm::TriggerResults > triggerResults;
   iEvent.getByLabel(hltInputTag_, triggerResults);
-
   const edm::TriggerNames& TrigNames = iEvent.triggerNames(*triggerResults); 
-  std::string pathName = "HLT_Ele27_eta2p1_WP85_Gsf_TriCentralPFJet40_v1";
-  std::vector<std::string> pathNames; 
 
-  std::string trigger = "HLT_Ele27_eta2p1_WP75_Gsf_CentralPFJet30_BTagCSV07_v1";//WPLoose
+  pathNames.clear();
+  passTrig.clear();
+
+  trigger = "HLT_Ele27_eta2p1_WP75_Gsf_CentralPFJet30_BTagCSV07_v1";//WPLoose
   pathNames.push_back(trigger);
-  trigger = "HLT_Ele27_eta2p1_WP75_Gsf_TriCentralPFJet30_v1";//WPLoose//WPLoose
+  trigger = "HLT_Ele27_eta2p1_WP75_Gsf_TriCentralPFJet30_v1";//WPLoose
   pathNames.push_back(trigger);
   trigger = "HLT_Ele27_eta2p1_WP75_Gsf_TriCentralPFJet50_40_30_v1";//WPLoose
   pathNames.push_back(trigger);
@@ -105,17 +105,18 @@ StoreTrigger::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   // This will then cause a seg fault when you do triggerResults->accept()
 
   // Print out names of all triggers in this event
-  for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
-    std::cout << "Path " << i << " name : " << TrigNames.triggerName( i ) << std::endl;
-  }
+  // for (unsigned int i = 0; i < triggerResults->size(); ++i) {
+  //   std::cout << "Path " << i << " name : " << TrigNames.triggerName( i ) << std::endl;
+  // }
 
   for (unsigned int j = 0; j < pathNames.size(); ++j) {
 
     std::cout << j << "th Trig index : " << TrigNames.triggerIndex(pathNames.at(j)) << std::endl;
 
     // Check if it passes
-    bool passTrig=triggerResults->accept(TrigNames.triggerIndex(pathNames.at(j)));  
-    std::cout << "pass trigger : " << passTrig << std::endl;
+    bool TrigDecision=triggerResults->accept(TrigNames.triggerIndex(pathNames.at(j)));
+    passTrig.push_back(TrigDecision);
+    std::cout << "pass trigger : " << passTrig.at(j) << std::endl;
 
   }
 
@@ -126,6 +127,9 @@ StoreTrigger::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 void 
 StoreTrigger::beginJob()
 {
+  outTree = fileService->make<TTree>("Triggers", "TriggerDecisions");
+  outTree->Branch("Name_of_Trigger", &pathNames);
+  outTree->Branch("Trigger_Decision", &passTrig);
 }
 
 // ------------ method called once each job just after ending the event loop  ------------

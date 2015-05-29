@@ -10,6 +10,10 @@
 #include "DataFormats/Common/interface/TriggerResults.h"
 #include "FWCore/Common/interface/TriggerNames.h"
 
+#include <FWCore/ServiceRegistry/interface/Service.h>
+#include <CommonTools/UtilAlgos/interface/TFileService.h>
+
+#include <TTree.h>
 //
 // class declaration
 //
@@ -29,6 +33,12 @@ class StoreTrigger : public edm::EDAnalyzer {
 
       const edm::InputTag   hltInputTag_;
 
+      edm::Service<TFileService> fileService;
+      TTree *outTree;
+
+      std::vector<std::string> pathNames; 
+      std::vector<bool> passTrig;  
+      std::string trigger;
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) override;

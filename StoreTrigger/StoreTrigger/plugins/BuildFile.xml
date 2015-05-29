@@ -1,4 +1,8 @@
 <use name="FWCore/Framework"/>
 <use name="FWCore/PluginManager"/>
 <use name="FWCore/ParameterSet"/>
+<!-- <use name="root"/>
+<use name="clhep"/> -->
+<use name="HLTrigger/HLTcore"/> 
+<!-- need above for TFileService -->
 <flags EDM_PLUGIN="1"/>

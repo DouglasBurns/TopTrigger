@@ -4,7 +4,7 @@ process = cms.Process("Demo")
 
 process.load("FWCore.MessageService.MessageLogger_cfi")
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(3) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(10) )
 
 process.source = cms.Source("PoolSource",
     # replace 'myfile.root' with the source file you want to use
@@ -19,3 +19,6 @@ process.storeTrigger = cms.EDAnalyzer('StoreTrigger',
 )
 
 process.p = cms.Path(process.storeTrigger)
+
+process.TFileService = cms.Service('TFileService',
+    fileName = cms.string('Trigger.root'))
