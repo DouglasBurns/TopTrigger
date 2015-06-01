@@ -14,6 +14,8 @@
 #include <CommonTools/UtilAlgos/interface/TFileService.h>
 
 #include <TTree.h>
+#include <string>
+
 //
 // class declaration
 //
@@ -37,7 +39,8 @@ class StoreTrigger : public edm::EDAnalyzer {
       TTree *outTree;
 
       std::vector<std::string> pathNames; 
-      std::vector<bool> passTrig;  
+      std::vector<int> passTrig;  
+      bool TrigDecision;
       std::string trigger;
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
