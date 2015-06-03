@@ -14,6 +14,7 @@
 #include <CommonTools/UtilAlgos/interface/TFileService.h>
 
 #include <TTree.h>
+#include <TString.h>
 #include <string>
 
 //
@@ -33,7 +34,7 @@ class StoreTrigger : public edm::EDAnalyzer {
       virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
       virtual void endJob() override;
 
-      const edm::InputTag   hltInputTag_;
+      const edm::InputTag hltInputTag_;
 
       edm::Service<TFileService> fileService;
       TTree *outTree;
@@ -42,6 +43,7 @@ class StoreTrigger : public edm::EDAnalyzer {
       std::vector<int> passTrig;  
       bool TrigDecision;
       std::string trigger;
+
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) override;

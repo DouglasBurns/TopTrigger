@@ -11,7 +11,7 @@
      [Notes on implementation]
 */
 //
-// Original Author:  Emyr Clement
+// Original Author:  Douglas Burns
 //         Created:  Thu, 28 May 2015 15:07:20 GMT
 //
 //
@@ -68,8 +68,7 @@ StoreTrigger::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   pathNames.push_back(trigger);
   trigger = "HLT_Ele27_eta2p1_WP75_Gsf_v1";
   pathNames.push_back(trigger);
-  // trigger = "HLT_Ele27_eta2p1_WPTight_Gsf_v1";
-  // pathNames.push_back(trigger);
+
   trigger = "HLT_Ele32_eta2p1_WP75_Gsf_CentralPFJet30_BTagCSV07_v1";
   pathNames.push_back(trigger);
   trigger = "HLT_Ele32_eta2p1_WP75_Gsf_TriCentralPFJet30_v1";
@@ -78,8 +77,7 @@ StoreTrigger::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   pathNames.push_back(trigger);
   trigger = "HLT_Ele32_eta2p1_WP75_Gsf_v1";
   pathNames.push_back(trigger);
-  // trigger = "HLT_Ele32_eta2p1_WPTight_Gsf_v1";
-  // pathNames.push_back(trigger);
+
   trigger = "HLT_IsoMu20_eta2p1_CentralPFJet30_BTagCSV07_v1";
   pathNames.push_back(trigger);
   trigger = "HLT_IsoMu20_eta2p1_TriCentralPFJet30_v1";
@@ -88,8 +86,7 @@ StoreTrigger::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   pathNames.push_back(trigger);
   trigger = "HLT_IsoMu20_eta2p1_v1";
   pathNames.push_back(trigger);
-  // trigger = "HLT_IsoMu20_v1";
-  // pathNames.push_back(trigger);
+
   trigger = "HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1";
   pathNames.push_back(trigger);
   trigger = "HLT_IsoMu24_eta2p1_TriCentralPFJet30_v1";
@@ -111,18 +108,13 @@ StoreTrigger::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   for (unsigned int j = 0; j < pathNames.size(); ++j) {
 
-    // std::cout << j << "th Trig index : " << TrigNames.triggerIndex(pathNames.at(j)) << std::endl;
-
     // Check if it passes
     TrigDecision=triggerResults->accept(TrigNames.triggerIndex(pathNames.at(j)));
     passTrig.push_back(TrigDecision);
-    // std::cout << "pass trigger : " << passTrig.at(j) << std::endl;
+
   }
    outTree->Fill();
-  // std::cout << "------------------" << std::endl;
-
 }
-
 
 // ------------ method called once each job just before starting event loop  ------------
 void 
@@ -130,9 +122,9 @@ StoreTrigger::beginJob()
 {
   outTree = fileService->make<TTree>("Triggers", "TriggerDecisions");
 
-  // outTree->Branch("Number_of_Triggers", &size);
   outTree->Branch("Trigger_Decision", "std::vector<int>", &passTrig);
   outTree->Branch("Name_of_Trigger", "std::vector<std::string>", &pathNames);
+
   // Normal Ouput = outTree->Branch("new_v", &new_v, "new_v/F"); Look at https://root.cern.ch/root/html/TTree.html
 }
 
