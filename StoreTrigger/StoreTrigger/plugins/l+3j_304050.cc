@@ -28,7 +28,7 @@
 
 TTBarJet304050::TTBarJet304050(const edm::ParameterSet& iConfig) :
     hltInputTag_(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("HLTInputTag"))),
-    triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("objects"))),
+    triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("HLTriggerObjects"))),
     singleleptontrigger_(iConfig.getParameter <std::string> ("SingleLeptonTriggerInput")),
     ttbarjet304050trigger_(iConfig.getParameter <std::string> ("TTBarJet304050TriggerInput")){
    //now do what ever initialization is needed
@@ -86,7 +86,9 @@ TTBarJet304050::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   if ( ttbarjet304050Index < triggerResults->size() ) {
     TTBarJet304050TrigDecision = triggerResults->accept(ttbarjet304050Index);
+    // if (TTBarJet304050TrigDecision == true){
     TTBarJet304050Hist->Fill(TTBarJet304050TrigDecision);
+  // }
   }
   else {
     std::cout << "Looking for : " << ttbarjet304050trigger_ << " but failed" << std::endl;
