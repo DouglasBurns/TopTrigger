@@ -12,18 +12,18 @@
 #include <FWCore/ServiceRegistry/interface/Service.h>
 #include <CommonTools/UtilAlgos/interface/TFileService.h>
 
-#include <TTree.h>
 #include <TString.h>
 #include <string>
+#include <TH1D.h>
 
 //
 // class declaration
 //
 
-class StoreTrigger : public edm::EDAnalyzer {
+class TTBarJet304050 : public edm::EDAnalyzer {
    public:
-      explicit StoreTrigger(const edm::ParameterSet&);
-      ~StoreTrigger();
+      explicit TTBarJet304050(const edm::ParameterSet&);
+      ~TTBarJet304050();
 
       static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
@@ -37,17 +37,15 @@ class StoreTrigger : public edm::EDAnalyzer {
       // const edm::InputTag hltInputTag_;
       edm::EDGetTokenT<edm::TriggerResults> hltInputTag_;
       edm::EDGetTokenT<pat::TriggerObjectStandAloneCollection> triggerObjects_;
+      const std::string singleleptontrigger_;
+      const std::string ttbarjet304050trigger_;
 
       edm::Service<TFileService> fileService;
-      TTree *outTree;
-
-      std::vector<std::string> pathNames; 
-      std::vector<int> passTrig;  
-      std::vector<int> pathIndices;  
+      TH1D *SingleLeptonHist, *TTBarJet304050Hist;
       
-      bool TrigDecision;
-      std::string trigger;
-
+      bool SingleLeptonTrigDecision, TTBarJet304050TrigDecision = false;
+      std::string singleleptontrigger, ttbarjet304050trigger = "Trigger";
+      unsigned int ttbarjet304050Index, singleleptonIndex = 9999;
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) override;

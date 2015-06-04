@@ -4,7 +4,7 @@ process = cms.Process("Demo")
 
 process.load("FWCore.MessageService.MessageLogger_cfi")
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(10000) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(100) )
 
 process.source = cms.Source("PoolSource",
     # replace 'myfile.root' with the source file you want to use
@@ -14,11 +14,96 @@ process.source = cms.Source("PoolSource",
     )
 )
 
-process.storeTrigger = cms.EDAnalyzer('StoreTrigger',
+process.Ele27_SingleTop = cms.EDAnalyzer('SingleTop',
     HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    objects = cms.InputTag("selectedPatTrigger"),
+    SingleLeptonTriggerInput = cms.string("HLT_Ele27_eta2p1_WP75_Gsf_v1"),
+    SingleTopTriggerInput = cms.string("HLT_Ele27_eta2p1_WP75_Gsf_CentralPFJet30_BTagCSV07_v1"),
+)
+process.Ele32_SingleTop = cms.EDAnalyzer('SingleTop',
+    HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    objects = cms.InputTag("selectedPatTrigger"),
+    SingleLeptonTriggerInput = cms.string("HLT_Ele32_eta2p1_WP75_Gsf_v1"),
+    SingleTopTriggerInput = cms.string("HLT_Ele32_eta2p1_WP75_Gsf_CentralPFJet30_BTagCSV07_v1"),
+)
+process.Mu20_SingleTop = cms.EDAnalyzer('SingleTop',
+    HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    objects = cms.InputTag("selectedPatTrigger"),
+    SingleLeptonTriggerInput = cms.string("HLT_IsoMu20_eta2p1_v1"),
+    SingleTopTriggerInput = cms.string("HLT_IsoMu20_eta2p1_CentralPFJet30_BTagCSV07_v1"),
+)
+process.Mu24_SingleTop = cms.EDAnalyzer('SingleTop',
+    HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    objects = cms.InputTag("selectedPatTrigger"),
+    SingleLeptonTriggerInput = cms.string("HLT_IsoMu24_eta2p1_v1"),
+    SingleTopTriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
 )
 
-process.p = cms.Path(process.storeTrigger)
+
+process.Ele27_TTBarJet30 = cms.EDAnalyzer('TTBarJet30',
+    HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    objects = cms.InputTag("selectedPatTrigger"),
+    SingleLeptonTriggerInput = cms.string("HLT_Ele27_eta2p1_WP75_Gsf_v1"),
+    TTBarJet30TriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
+)
+process.Ele32_TTBarJet30 = cms.EDAnalyzer('TTBarJet30',
+    HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    objects = cms.InputTag("selectedPatTrigger"),
+    SingleLeptonTriggerInput = cms.string("HLT_Ele32_eta2p1_WP75_Gsf_v1"),
+    TTBarJet30TriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
+)
+process.Mu20_TTBarJet30 = cms.EDAnalyzer('TTBarJet30',
+    HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    objects = cms.InputTag("selectedPatTrigger"),
+    SingleLeptonTriggerInput = cms.string("HLT_IsoMu20_eta2p1_v1"),
+    TTBarJet30TriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
+)
+process.Mu24_TTBarJet30 = cms.EDAnalyzer('TTBarJet30',
+    HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    objects = cms.InputTag("selectedPatTrigger"),
+    SingleLeptonTriggerInput = cms.string("HLT_IsoMu24_eta2p1_v1"),
+    TTBarJet30TriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
+)
+
+
+process.Ele27_TTBarJet304050 = cms.EDAnalyzer('TTBarJet304050',
+    HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    objects = cms.InputTag("selectedPatTrigger"),
+    SingleLeptonTriggerInput = cms.string("HLT_Ele27_eta2p1_WP75_Gsf_v1"),
+    TTBarJet304050TriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
+)
+process.Ele32_TTBarJet304050 = cms.EDAnalyzer('TTBarJet304050',
+    HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    objects = cms.InputTag("selectedPatTrigger"),
+    SingleLeptonTriggerInput = cms.string("HLT_Ele32_eta2p1_WP75_Gsf_v1"),
+    TTBarJet304050TriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
+)
+process.Mu20_TTBarJet304050 = cms.EDAnalyzer('TTBarJet304050',
+    HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    objects = cms.InputTag("selectedPatTrigger"),
+    SingleLeptonTriggerInput = cms.string("HLT_IsoMu20_eta2p1_v1"),
+    TTBarJet304050TriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
+)
+process.Mu24_TTBarJet304050 = cms.EDAnalyzer('TTBarJet304050',
+    HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    objects = cms.InputTag("selectedPatTrigger"),
+    SingleLeptonTriggerInput = cms.string("HLT_IsoMu24_eta2p1_v1"),
+    TTBarJet304050TriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
+)
+
+
+process.p = cms.Path(process.Ele27_SingleTop*
+	process.Ele32_SingleTop*
+	process.Mu20_SingleTop*
+	process.Mu24_SingleTop*
+	process.Ele27_TTBarJet30*
+	process.Ele32_TTBarJet30*
+	process.Mu20_TTBarJet30*
+	process.Mu24_TTBarJet30*
+	process.Ele27_TTBarJet304050*
+	process.Ele32_TTBarJet304050*
+	process.Mu20_TTBarJet304050*
+	process.Mu24_TTBarJet304050)
 
 process.TFileService = cms.Service('TFileService',
     fileName = cms.string('TestTrigger.root'))
