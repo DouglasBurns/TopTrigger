@@ -30,7 +30,10 @@ TTBarJet304050::TTBarJet304050(const edm::ParameterSet& iConfig) :
     hltInputTag_(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("HLTInputTag"))),
     triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("HLTriggerObjects"))),
     singleleptontrigger_(iConfig.getParameter <std::string> ("SingleLeptonTriggerInput")),
-    ttbarjet304050trigger_(iConfig.getParameter <std::string> ("TTBarJet304050TriggerInput")){
+    ttbarjet304050trigger_(iConfig.getParameter <std::string> ("TTBarJet304050TriggerInput")),
+    asymmetricjet30filter_(iConfig.getParameter <std::string> ("AsymmetricJet30FilterInput")),
+    asymmetricjet40filter_(iConfig.getParameter <std::string> ("AsymmetricJet40FilterInput")),
+    asymmetricjet50filter_(iConfig.getParameter <std::string> ("AsymmetricJet50FilterInput")){
    //now do what ever initialization is needed
 
 }
@@ -66,11 +69,9 @@ TTBarJet304050::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
       if ( TrigNames.triggerName(i).find(singleleptontrigger_) != std::string::npos ) {
         singleleptonIndex = i;
-        singleleptontrigger = TrigNames.triggerName(i);
       }
       if ( TrigNames.triggerName(i).find(ttbarjet304050trigger_) != std::string::npos ) {
         ttbarjet304050Index = i;
-        ttbarjet304050trigger = TrigNames.triggerName(i);
       }
   }
 
@@ -93,14 +94,55 @@ TTBarJet304050::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   else {
     std::cout << "Looking for : " << ttbarjet304050trigger_ << " but failed" << std::endl;
   }
-}
 
+
+  for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
+    for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
+      if ( obj.filterLabels()[i].find(asymmetricjet30filter_) != std::string::npos ) {
+        TTBarJet30Hist_Pt->Fill(obj.pt());
+        TTBarJet30Hist_Eta->Fill(obj.eta());
+        TTBarJet30Hist_Phi->Fill(obj.phi());
+      }
+    }
+      for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
+      if ( obj.filterLabels()[i].find(asymmetricjet40filter_) != std::string::npos ) {
+        TTBarJet40Hist_Pt->Fill(obj.pt());
+        TTBarJet40Hist_Eta->Fill(obj.eta());
+        TTBarJet40Hist_Phi->Fill(obj.phi());
+      }
+    }    for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
+      if ( obj.filterLabels()[i].find(asymmetricjet50filter_) != std::string::npos ) {
+        TTBarJet50Hist_Pt->Fill(obj.pt());
+        TTBarJet50Hist_Eta->Fill(obj.eta());
+        TTBarJet50Hist_Phi->Fill(obj.phi());
+      }
+    }
+  }
+}
 // ------------ method called once each job just before starting event loop  ------------
 void 
 TTBarJet304050::beginJob(){
-  SingleLeptonHist = fileService->make<TH1D>("Single Lepton Trigger Decision", "Single Lepton Trigger Decision", 2, -0.5, 1.5);
-  TTBarJet304050Hist = fileService->make<TH1D>("TTBarJet304050 Trigger Decision", "TTBarJet304050 Trigger Decision", 2, -0.5, 1.5);
+
+  subDir_TrigDec = fileService->mkdir( "Trigger Decision" );
+  TTBarJet304050Hist = subDir_TrigDec.make<TH1D>("TTBarJet304050 Trigger Decision", ttbarjet304050trigger_.c_str(), 2, -0.5, 1.5);
+  SingleLeptonHist = subDir_TrigDec.make<TH1D>("Single Lepton Trigger Decision", singleleptontrigger_.c_str(), 2, -0.5, 1.5);
+
+  subDir_AsymmetricJet30Filter = fileService->mkdir( "Asymmetric30JetFilter" );
+  TTBarJet30Hist_Pt = subDir_AsymmetricJet30Filter.make<TH1D>("Pt", "Pt", 100, 0, 300);
+  TTBarJet30Hist_Eta = subDir_AsymmetricJet30Filter.make<TH1D>("Eta", "Eta", 100, -5, 5);
+  TTBarJet30Hist_Phi = subDir_AsymmetricJet30Filter.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+
+  subDir_AsymmetricJet40Filter = fileService->mkdir( "Asymmetric40JetFilter" );
+  TTBarJet40Hist_Pt = subDir_AsymmetricJet40Filter.make<TH1D>("Pt", "Pt", 100, 0, 300);
+  TTBarJet40Hist_Eta = subDir_AsymmetricJet40Filter.make<TH1D>("Eta", "Eta", 100, -5, 5);
+  TTBarJet40Hist_Phi = subDir_AsymmetricJet40Filter.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+
+  subDir_AsymmetricJet50Filter = fileService->mkdir( "Asymmetric50JetFilter" );
+  TTBarJet50Hist_Pt = subDir_AsymmetricJet50Filter.make<TH1D>("Pt", "Pt", 100, 0, 300);
+  TTBarJet50Hist_Eta = subDir_AsymmetricJet50Filter.make<TH1D>("Eta", "Eta", 100, -5, 5);
+  TTBarJet50Hist_Phi = subDir_AsymmetricJet50Filter.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
 }
+
 
 // ------------ method called once each job just after ending the event loop  ------------
 void 

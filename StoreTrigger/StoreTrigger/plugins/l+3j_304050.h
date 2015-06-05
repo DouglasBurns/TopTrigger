@@ -39,12 +39,19 @@ class TTBarJet304050 : public edm::EDAnalyzer {
       edm::EDGetTokenT<pat::TriggerObjectStandAloneCollection> triggerObjects_;
       const std::string singleleptontrigger_;
       const std::string ttbarjet304050trigger_;
+      const std::string asymmetricjet30filter_;
+      const std::string asymmetricjet40filter_;
+      const std::string asymmetricjet50filter_;
 
       edm::Service<TFileService> fileService;
       TH1D *SingleLeptonHist, *TTBarJet304050Hist;
-      
+      TH1D *TTBarJet30Hist_Pt, *TTBarJet30Hist_Eta, *TTBarJet30Hist_Phi;
+      TH1D *TTBarJet40Hist_Pt, *TTBarJet40Hist_Eta, *TTBarJet40Hist_Phi;
+      TH1D *TTBarJet50Hist_Pt, *TTBarJet50Hist_Eta, *TTBarJet50Hist_Phi;
+
+      TFileDirectory subDir_TrigDec, subDir_AsymmetricJet30Filter, subDir_AsymmetricJet40Filter, subDir_AsymmetricJet50Filter;
+
       bool SingleLeptonTrigDecision, TTBarJet304050TrigDecision = false;
-      std::string singleleptontrigger, ttbarjet304050trigger = "Trigger";
       unsigned int ttbarjet304050Index, singleleptonIndex = 9999;
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;

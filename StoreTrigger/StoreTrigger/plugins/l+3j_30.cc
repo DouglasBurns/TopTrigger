@@ -30,7 +30,8 @@ TTBarJet30::TTBarJet30(const edm::ParameterSet& iConfig) :
     hltInputTag_(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("HLTInputTag"))),
     triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("HLTriggerObjects"))),
     singleleptontrigger_(iConfig.getParameter <std::string> ("SingleLeptonTriggerInput")),
-    ttbarjet30trigger_(iConfig.getParameter <std::string> ("TTBarJet30TriggerInput")){
+    ttbarjet30trigger_(iConfig.getParameter <std::string> ("TTBarJet30TriggerInput")),
+    symmetricjetfilter_(iConfig.getParameter <std::string> ("SymmetricJetFilterInput")){
    //now do what ever initialization is needed
 
 }
@@ -56,7 +57,7 @@ TTBarJet30::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
   // std::cout << "In analyze" << std::endl;
   edm::Handle < edm::TriggerResults > triggerResults;
-  edm::Handle<pat::TriggerObjectStandAloneCollection> triggerObjects;
+  edm::Handle < pat::TriggerObjectStandAloneCollection > triggerObjects;
 
   iEvent.getByToken(hltInputTag_, triggerResults);
   iEvent.getByToken(triggerObjects_, triggerObjects);
@@ -65,12 +66,10 @@ TTBarJet30::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
   for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
       if ( TrigNames.triggerName(i).find(singleleptontrigger_) != std::string::npos ) {
-        singleleptonIndex = i;
-        singleleptontrigger = TrigNames.triggerName(i);
+          singleleptonIndex = i;
       }
       if ( TrigNames.triggerName(i).find(ttbarjet30trigger_) != std::string::npos ) {
-        ttbarjet30Index = i;
-        ttbarjet30trigger = TrigNames.triggerName(i);
+          ttbarjet30Index = i;
       }
   }
 
@@ -91,13 +90,32 @@ TTBarJet30::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   else {
     std::cout << "Looking for : " << ttbarjet30trigger_ << " but failed" << std::endl;
   }
+
+
+
+  for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
+    for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
+      if ( obj.filterLabels()[i].find(symmetricjetfilter_) != std::string::npos ) {
+        TTBarJet30Hist_Pt->Fill(obj.pt());
+        TTBarJet30Hist_Eta->Fill(obj.eta());
+        TTBarJet30Hist_Phi->Fill(obj.phi());
+      }
+    }
+  }
 }
 
 // ------------ method called once each job just before starting event loop  ------------
 void 
 TTBarJet30::beginJob(){
-  SingleLeptonHist = fileService->make<TH1D>("Single Lepton Trigger Decision", "Single Lepton Trigger Decision", 2, -0.5, 1.5);
-  TTBarJet30Hist = fileService->make<TH1D>("TTBarJet30 Trigger Decision", "TTBarJet30 Trigger Decision", 2, -0.5, 1.5);
+
+  subDir_TrigDec = fileService->mkdir( "Trigger Decision" );
+  TTBarJet30Hist = subDir_TrigDec.make<TH1D>("TTBarJet30 Trigger Decision", ttbarjet30trigger_.c_str(), 2, -0.5, 1.5);
+  SingleLeptonHist = subDir_TrigDec.make<TH1D>("Single Lepton Trigger Decision", singleleptontrigger_.c_str(), 2, -0.5, 1.5);
+
+  subDir_SymmetricJetFilter = fileService->mkdir( "SymmetricJetFilter" );
+  TTBarJet30Hist_Pt = subDir_SymmetricJetFilter.make<TH1D>("Pt", "Pt", 100, 0, 300);
+  TTBarJet30Hist_Eta = subDir_SymmetricJetFilter.make<TH1D>("Eta", "Eta", 100, -5, 5);
+  TTBarJet30Hist_Phi = subDir_SymmetricJetFilter.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
