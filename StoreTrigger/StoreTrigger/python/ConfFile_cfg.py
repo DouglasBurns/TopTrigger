@@ -4,7 +4,7 @@ process = cms.Process("Demo")
 
 process.load("FWCore.MessageService.MessageLogger_cfi")
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(10000) )
 
 
 process.source = cms.Source("PoolSource",
@@ -72,7 +72,7 @@ process.Mu20_TTBarJet30 = cms.EDAnalyzer('TTBarJet30',
     HLTriggerObjects = cms.InputTag('selectedPatTrigger','','PAT'),
     SingleLeptonTriggerInput = cms.string("HLT_IsoMu20_eta2p1_v1"),
     TTBarJet30TriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
-    SymmetricJetFilterInput = cms.string("hltIsoMu20Eta2p1Trk02TriCentralPFJet30MuCLeaned"),
+    SymmetricJetFilterInput = cms.string("hltIsoMu20Eta2p1Trk02TriCentralPFJet30MuCleaned"),
 )
 
 process.Mu24_TTBarJet30 = cms.EDAnalyzer('TTBarJet30',
@@ -80,7 +80,7 @@ process.Mu24_TTBarJet30 = cms.EDAnalyzer('TTBarJet30',
     HLTriggerObjects = cms.InputTag('selectedPatTrigger','','PAT'),
     SingleLeptonTriggerInput = cms.string("HLT_IsoMu24_eta2p1_v1"),
     TTBarJet30TriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
-    SymmetricJetFilterInput = cms.string("hltIsoMu24Eta2p1Trk02TriCentralPFJet30MuCLeaned"),
+    SymmetricJetFilterInput = cms.string("hltIsoMu24Eta2p1Trk02TriCentralPFJet30MuCleaned"),
 )
 
 
@@ -109,9 +109,9 @@ process.Mu20_TTBarJet304050 = cms.EDAnalyzer('TTBarJet304050',
     HLTriggerObjects = cms.InputTag('selectedPatTrigger','','PAT'),
     SingleLeptonTriggerInput = cms.string("HLT_IsoMu20_eta2p1_v1"),
     TTBarJet304050TriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
-    AsymmetricJet30FilterInput = cms.string("hltIsoMu20Eta2p1Trk02TriCentralPFJet30MuCLeaned"),
-    AsymmetricJet40FilterInput = cms.string("hltIsoMu20Eta2p1Trk02TriCentralPFJet40MuCLeaned"),
-    AsymmetricJet50FilterInput = cms.string("hltIsoMu20Eta2p1Trk02TriCentralPFJet50MuCLeaned"),
+    AsymmetricJet30FilterInput = cms.string("hltIsoMu20Eta2p1Trk02TriCentralPFJet30MuCleaned"),
+    AsymmetricJet40FilterInput = cms.string("hltIsoMu20Eta2p1Trk02DiCentralPFJet40MuCleaned"),
+    AsymmetricJet50FilterInput = cms.string("hltIsoMu20Eta2p1Trk02CentralPFJet50MuCleaned"),
 )
 
 process.Mu24_TTBarJet304050 = cms.EDAnalyzer('TTBarJet304050',
@@ -119,9 +119,9 @@ process.Mu24_TTBarJet304050 = cms.EDAnalyzer('TTBarJet304050',
     HLTriggerObjects = cms.InputTag('selectedPatTrigger','','PAT'),
     SingleLeptonTriggerInput = cms.string("HLT_IsoMu24_eta2p1_v1"),
     TTBarJet304050TriggerInput = cms.string("HLT_IsoMu24_eta2p1_CentralPFJet30_BTagCSV07_v1"),
-    AsymmetricJet30FilterInput = cms.string("hltIsoMu24Eta2p1Trk02TriCentralPFJet30MuCLeaned"),
-    AsymmetricJet40FilterInput = cms.string("hltIsoMu24Eta2p1Trk02TriCentralPFJet40MuCLeaned"),
-    AsymmetricJet50FilterInput = cms.string("hltIsoMu24Eta2p1Trk02TriCentralPFJet50MuCLeaned"),
+    AsymmetricJet30FilterInput = cms.string("hltIsoMu24Eta2p1Trk02TriCentralPFJet30MuCleaned"),
+    AsymmetricJet40FilterInput = cms.string("hltIsoMu24Eta2p1Trk02DiCentralPFJet40MuCleaned"),
+    AsymmetricJet50FilterInput = cms.string("hltIsoMu24Eta2p1Trk02CentralPFJet50MuCleaned"),
 )
 
 
