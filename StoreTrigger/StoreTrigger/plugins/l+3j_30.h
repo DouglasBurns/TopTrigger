@@ -40,13 +40,14 @@ class TTBarJet30 : public edm::EDAnalyzer {
       const std::string singleleptontrigger_;
       const std::string ttbarjet30trigger_;
       const std::string symmetricjetfilter_;
+      std::string CombinedTrigger = "";
 
       edm::Service<TFileService> fileService;
-      TH1D *SingleLeptonHist, *TTBarJet30Hist;
+      TH1D *SingleLeptonHist, *TTBarJet30Hist, *TTBarJet30CombinedHist;
       TH1D *TTBarJet30Hist_Pt, *TTBarJet30Hist_Eta, *TTBarJet30Hist_Phi;
 
       TFileDirectory subDir_TrigDec, subDir_SymmetricJetFilter;
-      bool SingleLeptonTrigDecision, TTBarJet30TrigDecision = false;
+      bool SingleLeptonTrigDecision, TTBarJet30TrigDecision, TTBarJet30CombinedTrigDecision = false;
       unsigned int ttbarjet30Index, singleleptonIndex = 9999;
 
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;

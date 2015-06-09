@@ -53,6 +53,9 @@ TTBarJet30::~TTBarJet30(){
 void
 TTBarJet30::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
+  CombinedTrigger.append(singleleptontrigger_.c_str());
+  CombinedTrigger.append(" and ");
+  CombinedTrigger.append(ttbarjet30trigger_.c_str());
   using namespace edm;
 
   // std::cout << "In analyze" << std::endl;
@@ -77,6 +80,16 @@ TTBarJet30::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   if ( singleleptonIndex < triggerResults->size() ) {
     SingleLeptonTrigDecision = triggerResults->accept(singleleptonIndex);
     SingleLeptonHist->Fill(SingleLeptonTrigDecision);
+
+    if (SingleLeptonTrigDecision == true){
+      if ( ttbarjet30Index < triggerResults->size() ) {
+          TTBarJet30CombinedTrigDecision = triggerResults->accept(ttbarjet30Index);
+          TTBarJet30CombinedHist->Fill(TTBarJet30CombinedTrigDecision);
+        }
+      else {
+        std::cout << "Looking for : " << ttbarjet30trigger_ << " but failed" << std::endl;
+      }
+    }
   }
   else {
     std::cout << "Looking for : " << singleleptontrigger_ << " but failed" << std::endl;
@@ -111,6 +124,7 @@ TTBarJet30::beginJob(){
   subDir_TrigDec = fileService->mkdir( "Trigger Decision" );
   TTBarJet30Hist = subDir_TrigDec.make<TH1D>("TTBarJet30 Trigger Decision", ttbarjet30trigger_.c_str(), 2, -0.5, 1.5);
   SingleLeptonHist = subDir_TrigDec.make<TH1D>("Single Lepton Trigger Decision", singleleptontrigger_.c_str(), 2, -0.5, 1.5);
+  TTBarJet30CombinedHist = subDir_TrigDec.make<TH1D>("Added TTBarJet30 Trigger Decision", CombinedTrigger.c_str(), 2, -0.5, 1.5);
 
   subDir_SymmetricJetFilter = fileService->mkdir( "SymmetricJetFilter" );
   TTBarJet30Hist_Pt = subDir_SymmetricJetFilter.make<TH1D>("Pt", "Pt", 100, 0, 300);

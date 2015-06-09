@@ -53,6 +53,10 @@ SingleTop::~SingleTop(){
 void
 SingleTop::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
+    CombinedTrigger.append(singleleptontrigger_.c_str());
+    CombinedTrigger.append(" and ");
+    CombinedTrigger.append(singletoptrigger_.c_str());
+
     using namespace edm;
 
     // std::cout << "In analyze" << std::endl;
@@ -77,11 +81,20 @@ SingleTop::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     if ( singleleptonIndex < triggerResults->size() ) {
       SingleLeptonTrigDecision = triggerResults->accept(singleleptonIndex);
       SingleLeptonHist->Fill(SingleLeptonTrigDecision);
+
+      if (SingleLeptonTrigDecision == true){
+        if ( singletopIndex < triggerResults->size() ) {
+          SingleTopCombinedTrigDecision = triggerResults->accept(singletopIndex);
+          SingleTopCombinedHist->Fill(SingleTopCombinedTrigDecision);
+        }
+        else {
+          std::cout << "Looking for : " << singletoptrigger_ << " but failed" << std::endl;
+        }
+      }
     }
     else {
       std::cout << "Looking for : " << singleleptontrigger_ << " but failed" << std::endl;
     }
-
 
     if ( singletopIndex < triggerResults->size() ) {
       SingleTopTrigDecision = triggerResults->accept(singletopIndex);
@@ -126,9 +139,9 @@ SingleTop::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 void 
 SingleTop::beginJob(){
   subDir_TrigDec = fileService->mkdir( "Trigger Decision" );
-  SingleTopHist = subDir_TrigDec.make<TH1D>("Single Top Trigger Decision", singletoptrigger_.c_str(), 2, -0.5, 1.5);
+  SingleTopHist = subDir_TrigDec.make<TH1D>("SingleTop Trigger Decision", singletoptrigger_.c_str(), 2, -0.5, 1.5);
   SingleLeptonHist = subDir_TrigDec.make<TH1D>("Single Lepton Trigger Decision", singleleptontrigger_.c_str(), 2, -0.5, 1.5);
-
+  SingleTopCombinedHist = subDir_TrigDec.make<TH1D>("Added SingleTop Trigger Decision", CombinedTrigger.c_str(), 2, -0.5, 1.5);
 
   subDir_SingleTopFilter = fileService->mkdir( "SingleTopFilter" );
   SingleTopFilterHist_Pt = subDir_SingleTopFilter.make<TH1D>("Pt", "Pt", 100, 0, 300);

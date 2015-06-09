@@ -48,14 +48,15 @@ class SingleTop : public edm::EDAnalyzer {
       const std::string singletoptrigger_;
       const std::string singletopfilter_;
       const std::string bjetfilter_;
+      std::string CombinedTrigger = "";
 
       edm::Service<TFileService> fileService;
-      TH1D *SingleLeptonHist, *SingleTopHist;
+      TH1D *SingleLeptonHist, *SingleTopHist, *SingleTopCombinedHist;
       TH1D *SingleTopFilterHist_Pt, *SingleTopFilterHist_Eta, *SingleTopFilterHist_Phi, *SingleTopFilterHist_Mass;
       TH1D *BJetFilterHist_Pt, *BJetFilterHist_Eta, *BJetFilterHist_Phi, *BJetFilterHist_Mass;
 
       TFileDirectory subDir_TrigDec, subDir_SingleTopFilter, subDir_BJetFilter;
-      bool SingleLeptonTrigDecision, SingleTopTrigDecision = false;
+      bool SingleLeptonTrigDecision, SingleTopTrigDecision, SingleTopCombinedTrigDecision = false;
       unsigned int singletopIndex, singleleptonIndex = 9999;
 
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
