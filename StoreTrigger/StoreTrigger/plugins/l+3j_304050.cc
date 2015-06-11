@@ -24,11 +24,13 @@
 
 // user include files
 #include "l+3j_304050.h"
+#include "JetDifferentialEfficiencies.h"
 
 
 TTBarJet304050::TTBarJet304050(const edm::ParameterSet& iConfig) :
     hltInputTag_(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("HLTInputTag"))),
     triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("HLTriggerObjects"))),
+    jets_(consumes<std::vector<pat::Jet>>(iConfig.getParameter<edm::InputTag>("jets"))),
     singleleptontrigger_(iConfig.getParameter <std::string> ("SingleLeptonTriggerInput")),
     ttbarjet304050trigger_(iConfig.getParameter <std::string> ("TTBarJet304050TriggerInput")),
     asymmetricjet30filter_(iConfig.getParameter <std::string> ("AsymmetricJet30FilterInput")),
@@ -63,7 +65,7 @@ TTBarJet304050::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   // std::cout << "In analyze" << std::endl;
   edm::Handle < edm::TriggerResults > triggerResults;
-  edm::Handle<pat::TriggerObjectStandAloneCollection> triggerObjects;
+  edm::Handle < pat::TriggerObjectStandAloneCollection > triggerObjects;
 
   iEvent.getByToken(hltInputTag_, triggerResults);
   iEvent.getByToken(triggerObjects_, triggerObjects);
@@ -110,6 +112,14 @@ TTBarJet304050::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   else {
     std::cout << "Looking for : " << ttbarjet304050trigger_ << " but failed" << std::endl;
   }
+
+  std::vector<float> JetPt = StoreJetPt(iEvent,jets_);
+  for (unsigned int i = 0, n = JetPt.size(); i < n; ++i){
+    std::cout << JetPt[i] << std::endl;
+  }
+
+
+
 
 
   for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 

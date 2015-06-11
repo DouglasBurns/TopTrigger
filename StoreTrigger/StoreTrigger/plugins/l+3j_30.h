@@ -8,6 +8,7 @@
 #include "DataFormats/Common/interface/TriggerResults.h"
 #include "FWCore/Common/interface/TriggerNames.h"
 #include "DataFormats/PatCandidates/interface/TriggerObjectStandAlone.h"
+#include "DataFormats/PatCandidates/interface/Jet.h"
 
 #include <FWCore/ServiceRegistry/interface/Service.h>
 #include <CommonTools/UtilAlgos/interface/TFileService.h>
@@ -37,6 +38,7 @@ class TTBarJet30 : public edm::EDAnalyzer {
       // const edm::InputTag hltInputTag_;
       edm::EDGetTokenT<edm::TriggerResults> hltInputTag_;
       edm::EDGetTokenT<pat::TriggerObjectStandAloneCollection> triggerObjects_;
+      edm::EDGetTokenT<std::vector<pat::Jet>> jets_;
       const std::string singleleptontrigger_;
       const std::string ttbarjet30trigger_;
       const std::string symmetricjetfilter_;
