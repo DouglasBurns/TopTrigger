@@ -9,6 +9,9 @@
 #include "FWCore/Common/interface/TriggerNames.h"
 #include "DataFormats/PatCandidates/interface/TriggerObjectStandAlone.h"
 #include "DataFormats/PatCandidates/interface/Jet.h"
+#include "DataFormats/PatCandidates/interface/MET.h"
+#include "DataFormats/PatCandidates/interface/Electron.h"
+#include "DataFormats/PatCandidates/interface/Muon.h"
 
 #include <FWCore/ServiceRegistry/interface/Service.h>
 #include <CommonTools/UtilAlgos/interface/TFileService.h>
@@ -34,17 +37,19 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
       virtual void endJob() override;
 
-
-      // const edm::InputTag hltInputTag_;
       edm::EDGetTokenT<edm::TriggerResults> hltInputTag_;
       edm::EDGetTokenT<pat::TriggerObjectStandAloneCollection> triggerObjects_;
       edm::EDGetTokenT<std::vector<pat::Jet>> jets_;
+      edm::EDGetTokenT<std::vector<pat::MET>> met_; 
+      edm::EDGetTokenT<std::vector<pat::Electron>> electrons_;
+      edm::EDGetTokenT<std::vector<pat::Muon>> muons_; 
       const std::string singleleptontrigger_;
       const std::string crosstrigger_;
       const std::string filter1_;
       const std::string filter2_;
       const std::string filter3_;
       const std::string hadronicleg_;
+      const std::string leptonicleg_;
 
       std::string CombinedTrigger = "";
 
@@ -53,13 +58,20 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       TH1D *Filter1_Pt, *Filter1_Eta, *Filter1_Phi;
       TH1D *Filter2_Pt, *Filter2_Eta, *Filter2_Phi;
       TH1D *Filter3_Pt, *Filter3_Eta, *Filter3_Phi;
-      TH1D *CrossTrigger_Pass_JetPtHist, *CrossTrigger_Pass_JetEtaHist, *CrossTrigger_Total_JetPtHist, *CrossTrigger_Total_JetEtaHist;
+      TH1D *CrossTrigger_Pass_JetPtHist, *CrossTrigger_Pass_JetEtaHist, *CrossTrigger_Total_JetPtHist, *CrossTrigger_Total_JetEtaHist, *CrossTrigger_Total_JetMultiplicity, *CrossTrigger_Total_hltHT;
 
-      TFileDirectory subDir_TrigDec, subDir_TrigDiffEff, subDir_Filter1, subDir_Filter2, subDir_Filter3;
+      TH1D *CrossTrigger_Pass_METPtHist, *CrossTrigger_Total_METPtHist, *CrossTrigger_Pass_METEnergyHist, *CrossTrigger_Total_METEnergyHist;
+      TH1D *CrossTrigger_Pass_LeptonPtHist, *CrossTrigger_Pass_LeptonEnergyHist, *CrossTrigger_Pass_LeptonEtaHist, *CrossTrigger_Total_LeptonPtHist, *CrossTrigger_Total_LeptonEnergyHist, *CrossTrigger_Total_LeptonEtaHist;
 
+      TFileDirectory subDir_TrigDec, subDir_TrigDiffEff, subDir_TrigDiffEff_Jet, subDir_TrigDiffEff_MET, subDir_Filter1, subDir_Filter2, subDir_Filter3;
+      TFileDirectory subDir_TrigDiffEff_Lepton;
       bool SingleLeptonTrigDecision, CrossTriggerTrigDecision, CrossTriggerCombinedTrigDecision = false;
       unsigned int crossIndex, singleleptonIndex = 9999;
-      float jetPt, jetEta;
+      float jetPt, jetEta, hltHT = 0;
+      float metPt, metEnergy = 0;
+      float leptonPt, leptonEta, leptonEnergy = 0;
+
+      int jetMultiplicity = 0;
 
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;

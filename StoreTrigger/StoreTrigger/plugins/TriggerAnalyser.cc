@@ -24,18 +24,22 @@
 
 // user include files
 #include "TriggerAnalyser.h"
-
+// combinedSecondaryVertexBJetTags
 
 TriggerAnalyser::TriggerAnalyser(const edm::ParameterSet& iConfig) :
     hltInputTag_(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("HLTInputTag"))),
     triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("HLTriggerObjects"))),
     jets_(consumes<std::vector<pat::Jet>>(iConfig.getParameter<edm::InputTag>("jets"))),
+    met_(consumes<std::vector<pat::MET>>(iConfig.getParameter<edm::InputTag>("met"))),
+    electrons_(consumes<std::vector<pat::Electron>>(iConfig.getParameter<edm::InputTag>("electrons"))),
+    muons_(consumes<std::vector<pat::Muon>>(iConfig.getParameter<edm::InputTag>("muons"))),
     singleleptontrigger_(iConfig.getParameter <std::string> ("SingleLeptonTriggerInput")),
     crosstrigger_(iConfig.getParameter <std::string> ("CrossTriggerInput")),
     filter1_(iConfig.getParameter <std::string> ("FilterInput1")),
     filter2_(iConfig.getParameter <std::string> ("FilterInput2")),
     filter3_(iConfig.getParameter <std::string> ("FilterInput3")),
-    hadronicleg_(iConfig.getParameter <std::string> ("HadronicLeg")){
+    hadronicleg_(iConfig.getParameter <std::string> ("HadronicLeg")),
+    leptonicleg_(iConfig.getParameter <std::string> ("LeptonicLeg")){
    //now do what ever initialization is needed
 
 }
@@ -64,17 +68,23 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       using namespace edm;
 
       // std::cout << "In analyze" << std::endl;
-      edm::Handle < edm::TriggerResults > triggerResults;
-      edm::Handle < pat::TriggerObjectStandAloneCollection > triggerObjects;
-      edm::Handle < std::vector<pat::Jet> > jets;
-      
+      edm::Handle <edm::TriggerResults> triggerResults;
+      edm::Handle <pat::TriggerObjectStandAloneCollection> triggerObjects;
+      edm::Handle <std::vector<pat::Jet>> jets;
+      edm::Handle <std::vector<pat::MET>> met;
+      edm::Handle <std::vector<pat::Electron>> electrons;
+      edm::Handle <std::vector<pat::Muon>> muons;
       iEvent.getByToken(hltInputTag_, triggerResults);
       iEvent.getByToken(triggerObjects_, triggerObjects);
       iEvent.getByToken(jets_, jets);
+      iEvent.getByToken(met_, met);
+      iEvent.getByToken(electrons_, electrons);
+      iEvent.getByToken(muons_, muons);
 
       const edm::TriggerNames &TrigNames = iEvent.triggerNames(*triggerResults); 
 
       for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
+            std::cout << "Trigger " << i << " in Menu : " << TrigNames.triggerName(i) << std::endl;
             if ( TrigNames.triggerName(i).find(singleleptontrigger_) != std::string::npos ) {
                   singleleptonIndex = i;
             }
@@ -118,6 +128,11 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
 
 
+
+
+
+      jetMultiplicity = 0;
+      hltHT = 0;
       // Select jets and store distributions used for differential efficiencies
       for( auto jet = jets->begin(); jet != jets->end(); ++jet ){ 
             // skip jets with low pT or outside the tracker acceptance
@@ -127,6 +142,8 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
             jetPt = jet->pt();
             jetEta = jet->eta();
+            ++jetMultiplicity;
+            hltHT += jetPt;
 
             if(CrossTriggerTrigDecision==true){
                   CrossTrigger_Pass_JetPtHist->Fill(jetPt);
@@ -136,9 +153,65 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             CrossTrigger_Total_JetEtaHist->Fill(jetEta);
       }
 
+      CrossTrigger_Total_JetMultiplicity->Fill(jetMultiplicity);
+      CrossTrigger_Total_hltHT->Fill(hltHT);
 
 
 
+      for( auto miss_et = met->begin(); miss_et != met->end(); ++miss_et ){ 
+
+            metPt = miss_et->pt();
+            metEnergy = miss_et->energy();
+
+            if(CrossTriggerTrigDecision==true){
+                  CrossTrigger_Pass_METPtHist->Fill(metPt);
+                  CrossTrigger_Pass_METEnergyHist->Fill(metEnergy);
+            }
+            CrossTrigger_Total_METPtHist->Fill(metPt);
+            CrossTrigger_Total_METEnergyHist->Fill(metEnergy);
+      }
+
+
+
+      // if ( leptonicleg_ == "Ele" ){
+      //       for( auto lepton = electrons->begin(); lepton != electrons->end(); ++lepton ){ 
+      //             if (electrons->size() == 0){
+      //                   continue;
+      //             }
+
+      //             std::cout << "Number of leptons in Ele event : " << electrons->size() << std::endl;
+      //             leptonPt = lepton->pt();
+      //             leptonEta = lepton->eta();
+      //             leptonEnergy = lepton->energy();
+
+      //             if(CrossTriggerTrigDecision==true){
+      //                   CrossTrigger_Pass_LeptonPtHist->Fill(leptonPt);
+      //                   CrossTrigger_Pass_LeptonEtaHist->Fill(leptonEta);
+      //                   CrossTrigger_Pass_LeptonEnergyHist->Fill(leptonEnergy);
+      //             }
+      //             CrossTrigger_Total_LeptonPtHist->Fill(leptonPt);
+      //             CrossTrigger_Total_LeptonEtaHist->Fill(leptonEta);
+      //             CrossTrigger_Total_LeptonEnergyHist->Fill(leptonEnergy);
+      //       }
+      // }
+      // else if ( leptonicleg_ == "Mu" ){
+      //       for( auto lepton = muons->begin(); lepton != muons->end(); ++lepton ){ 
+      //             if (muons->size() == 0) continue;
+                  
+      //             leptonPt = lepton->pt();
+      //             leptonEta = lepton->eta();
+      //             leptonEnergy = lepton->energy();
+
+      //             if(CrossTriggerTrigDecision==true){
+      //                   CrossTrigger_Pass_LeptonPtHist->Fill(leptonPt);
+      //                   CrossTrigger_Pass_LeptonEtaHist->Fill(leptonEta);
+      //                   CrossTrigger_Pass_LeptonEnergyHist->Fill(leptonEnergy);
+      //             }
+      //             CrossTrigger_Total_LeptonPtHist->Fill(leptonPt);
+      //             CrossTrigger_Total_LeptonEtaHist->Fill(leptonEta);
+      //             CrossTrigger_Total_LeptonEnergyHist->Fill(leptonEnergy);
+      //       }
+      // }
 
 
 
@@ -201,12 +274,6 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
 
 
-
-
-
-
-
-
 // ------------ method called once each job just before starting event loop  ------------
 void 
 TriggerAnalyser::beginJob(){
@@ -216,11 +283,29 @@ TriggerAnalyser::beginJob(){
       SingleLeptonHist = subDir_TrigDec.make<TH1D>("Single Lepton Trigger Decision", singleleptontrigger_.c_str(), 2, -0.5, 1.5);
       CrossTriggerCombinedHist = subDir_TrigDec.make<TH1D>("Added CrossTrigger Trigger Decision", CombinedTrigger.c_str(), 2, -0.5, 1.5);
 
-      subDir_TrigDiffEff = fileService->mkdir( "Trig Differential Eff" );
-      CrossTrigger_Pass_JetPtHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Pass_JetPt", "CrossTriggerPass_Pt", 100, 0, 300);
-      CrossTrigger_Total_JetPtHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Total_JetPt", "Total_Pt", 100, 0, 300);
-      CrossTrigger_Pass_JetEtaHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Pass_JetEta", "CrossTriggerPass_Eta", 100, -3, 3);
-      CrossTrigger_Total_JetEtaHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Total_JetEta", "Total_Eta", 100, -3, 3);
+      subDir_TrigDiffEff = fileService->mkdir( "Trigger Observables" );
+
+      subDir_TrigDiffEff_Jet = subDir_TrigDiffEff.mkdir( "Jets" );
+      CrossTrigger_Pass_JetPtHist = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Pass_JetPt", "CrossTriggerPass_Pt", 100, 0, 300);
+      CrossTrigger_Total_JetPtHist = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Total_JetPt", "Total_Pt", 100, 0, 300);
+      CrossTrigger_Pass_JetEtaHist = subDir_TrigDiffEff_MET.make<TH1D>("CrossTrigger_Pass_METPt", "CrossTriggerPass_Pt", 100, 0, 300);
+      CrossTrigger_Total_JetEtaHist = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Total_JetEta", "Total_Eta", 100, -3, 3);
+      CrossTrigger_Total_JetMultiplicity = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Total_JetMultiplicity", "Total_JetMultiplicity", 15, 0, 15);
+      CrossTrigger_Total_hltHT = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Total_hltHT", "Total_hltHT", 200, 0, 500);
+
+      subDir_TrigDiffEff_MET = subDir_TrigDiffEff.mkdir( "MET" );
+      CrossTrigger_Pass_METPtHist = subDir_TrigDiffEff_MET.make<TH1D>("CrossTrigger_Pass_METPt", "CrossTriggerPass_Pt", 100, 0, 300);
+      CrossTrigger_Total_METPtHist = subDir_TrigDiffEff_MET.make<TH1D>("CrossTrigger_Total_METPt", "Total_Pt", 100, 0, 300);
+      CrossTrigger_Pass_METEnergyHist = subDir_TrigDiffEff_MET.make<TH1D>("CrossTrigger_Pass_METEnergy", "CrossTriggerPass_Energy", 100, 0, 300);
+      CrossTrigger_Total_METEnergyHist = subDir_TrigDiffEff_MET.make<TH1D>("CrossTrigger_Total_METEnergy", "Total_Energy", 100, 0, 300);
+
+      subDir_TrigDiffEff_Lepton = subDir_TrigDiffEff.mkdir( "Leading_Lepton" );
+      CrossTrigger_Pass_LeptonPtHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Pass_LeptonPt", "CrossTriggerPass_Pt", 100, 0, 300);
+      CrossTrigger_Total_LeptonPtHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Total_LeptonPt", "CrossTriggerTotal_Pt", 100, 0, 300);
+      CrossTrigger_Pass_LeptonEtaHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Pass_LeptonEta", "CrossTriggerPass_Eta", 100, -3, 3);
+      CrossTrigger_Total_LeptonEtaHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Total_LeptonEta", "CrossTriggerTotal_Eta", 100, -3, 3);
+      CrossTrigger_Pass_LeptonEnergyHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Pass_LeptonEnergy", "CrossTriggerPass_Energy", 100, 0, 300);
+      CrossTrigger_Total_LeptonEnergyHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Total_LeptonEnergy", "CrossTriggerTotal_Energy", 100, 0, 300);
 
       if ( hadronicleg_ == "SingleTop" ){
             subDir_Filter1 = fileService->mkdir( filter1_.c_str() );
