@@ -163,6 +163,21 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
 
 
+      for( auto met = mets->begin(); met != mets->end(); ++met ){ 
+
+            metPt = met->pt();
+            metEnergy = met->energy();//met pt = met energy
+
+            if(CrossTriggerTrigDecision==true){
+                  CrossTrigger_Pass_METPtHist->Fill(metPt);
+                  CrossTrigger_Pass_METEnergyHist->Fill(metEnergy);
+            }
+            CrossTrigger_Total_METPtHist->Fill(metPt);
+            CrossTrigger_Total_METEnergyHist->Fill(metEnergy);
+      }
+
+
+
       for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
 
             if ( hadronicleg_ == "SingleTop" ){
@@ -248,7 +263,13 @@ TriggerAnalyser::beginJob(){
       CrossTrigger_Pass_hltHT = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Pass_hltHT", "Pass_hltHT", 200, 0, 500);
       CrossTrigger_Total_hltHT = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Total_hltHT", "Total_hltHT", 200, 0, 500);
 
-      if ( hadronicleg_ == "SingleTop" ){
+      subDir_TrigDiffEff_MET = subDir_TrigDiffEff.mkdir( "MET" );
+      CrossTrigger_Pass_METPtHist = subDir_TrigDiffEff_MET.make<TH1D>("CrossTrigger_Pass_METPt", "CrossTriggerPass_Pt", 100, 0, 300);
+      CrossTrigger_Total_METPtHist = subDir_TrigDiffEff_MET.make<TH1D>("CrossTrigger_Total_METPt", "Total_Pt", 100, 0, 300);
+      CrossTrigger_Pass_METEnergyHist = subDir_TrigDiffEff_MET.make<TH1D>("CrossTrigger_Pass_METEnergy", "CrossTriggerPass_Energy", 100, 0, 300);
+      CrossTrigger_Total_METEnergyHist = subDir_TrigDiffEff_MET.make<TH1D>("CrossTrigger_Total_METEnergy", "Total_Energy", 100, 0, 300);
+
+     if ( hadronicleg_ == "SingleTop" ){
             subDir_Filter1 = fileService->mkdir( filter1_.c_str() );
             Filter1_Pt = subDir_Filter1.make<TH1D>("Pt", "Pt", 100, 0, 300);
             Filter1_Eta = subDir_Filter1.make<TH1D>("Eta", "Eta", 100, -5, 5);

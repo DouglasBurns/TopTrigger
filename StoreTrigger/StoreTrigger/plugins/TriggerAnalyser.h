@@ -61,13 +61,14 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       TH1D *Filter2_Pt, *Filter2_Eta, *Filter2_Phi;
       TH1D *Filter3_Pt, *Filter3_Eta, *Filter3_Phi;
       TH1D *CrossTrigger_Pass_JetPtHist, *CrossTrigger_Pass_JetEtaHist, *CrossTrigger_Total_JetPtHist, *CrossTrigger_Total_JetEtaHist, *CrossTrigger_Pass_JetMultiplicity, *CrossTrigger_Total_JetMultiplicity, *CrossTrigger_Pass_hltHT, *CrossTrigger_Total_hltHT;
+      TH1D *CrossTrigger_Pass_METPtHist, *CrossTrigger_Total_METPtHist, *CrossTrigger_Pass_METEnergyHist, *CrossTrigger_Total_METEnergyHist;
 
-      TFileDirectory subDir_TrigDec, subDir_TrigDiffEff, subDir_TrigDiffEff_Jet, subDir_Filter1, subDir_Filter2, subDir_Filter3;
+      TFileDirectory subDir_TrigDec, subDir_TrigDiffEff, subDir_TrigDiffEff_Jet, subDir_TrigDiffEff_MET, subDir_Filter1, subDir_Filter2, subDir_Filter3;
 
       bool SingleLeptonTrigDecision, CrossTriggerTrigDecision, CrossTriggerCombinedTrigDecision = false;
       unsigned int crossIndex, singleleptonIndex = 9999;
       float jetPt, jetEta, hltHT = 0;
-
+      float metPt, metEnergy = 0;
       int jetMultiplicity = 0;
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
