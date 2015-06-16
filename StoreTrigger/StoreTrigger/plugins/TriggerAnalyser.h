@@ -45,6 +45,7 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       const std::string filter2_;
       const std::string filter3_;
       const std::string hadronicleg_;
+      const std::string leptonicleg_;
 
       std::string CombinedTrigger = "";
 

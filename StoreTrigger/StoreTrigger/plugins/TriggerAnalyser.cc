@@ -35,7 +35,8 @@ TriggerAnalyser::TriggerAnalyser(const edm::ParameterSet& iConfig) :
     filter1_(iConfig.getParameter <std::string> ("FilterInput1")),
     filter2_(iConfig.getParameter <std::string> ("FilterInput2")),
     filter3_(iConfig.getParameter <std::string> ("FilterInput3")),
-    hadronicleg_(iConfig.getParameter <std::string> ("HadronicLeg")){
+    hadronicleg_(iConfig.getParameter <std::string> ("HadronicLeg")),
+    leptonicleg_(iConfig.getParameter <std::string> ("LeptonicLeg")){
    //now do what ever initialization is needed
 
 }
@@ -60,6 +61,8 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       CombinedTrigger.append(singleleptontrigger_.c_str());
       CombinedTrigger.append(" and ");
       CombinedTrigger.append(crosstrigger_.c_str());
+
+      std::cout << "Lepton Leg : " << leptonicleg_ << std::endl;
 
       using namespace edm;
 
@@ -216,7 +219,9 @@ TriggerAnalyser::beginJob(){
       SingleLeptonHist = subDir_TrigDec.make<TH1D>("Single Lepton Trigger Decision", singleleptontrigger_.c_str(), 2, -0.5, 1.5);
       CrossTriggerCombinedHist = subDir_TrigDec.make<TH1D>("Added CrossTrigger Trigger Decision", CombinedTrigger.c_str(), 2, -0.5, 1.5);
 
-      subDir_TrigDiffEff = fileService->mkdir( "Trig Differential Eff" );
+      subDir_TrigDiffEff = fileService->mkdir( "Trigger_Distributions" );
+
+      
       CrossTrigger_Pass_JetPtHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Pass_JetPt", "CrossTriggerPass_Pt", 100, 0, 300);
       CrossTrigger_Total_JetPtHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Total_JetPt", "Total_Pt", 100, 0, 300);
       CrossTrigger_Pass_JetEtaHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Pass_JetEta", "CrossTriggerPass_Eta", 100, -3, 3);
