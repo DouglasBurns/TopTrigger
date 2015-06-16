@@ -88,7 +88,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
       for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
 
-            std::cout << "Trigger " << i << " in Menu : " << TrigNames.triggerName(i) << std::endl;
+            // std::cout << "Trigger " << i << " in Menu : " << TrigNames.triggerName(i) << std::endl;
             if ( TrigNames.triggerName(i).find(singleleptontrigger_) != std::string::npos ) {
                   singleleptonIndex = i;
             }
@@ -132,6 +132,8 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
 
 
+      jetMultiplicity = 0;
+      hltHT = 0;
       // Select jets and store distributions used for differential efficiencies
       for( auto jet = jets->begin(); jet != jets->end(); ++jet ){ 
             // skip jets with low pT or outside the tracker acceptance
@@ -141,6 +143,8 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
             jetPt = jet->pt();
             jetEta = jet->eta();
+            ++jetMultiplicity;
+            hltHT += jetPt;
 
             if(CrossTriggerTrigDecision==true){
                   CrossTrigger_Pass_JetPtHist->Fill(jetPt);
@@ -150,10 +154,12 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             CrossTrigger_Total_JetEtaHist->Fill(jetEta);
       }
 
-
-
-
-
+      if(CrossTriggerTrigDecision==true){
+            CrossTrigger_Pass_JetMultiplicity->Fill(jetMultiplicity);
+            CrossTrigger_Pass_hltHT->Fill(hltHT);
+      }
+      CrossTrigger_Total_JetMultiplicity->Fill(jetMultiplicity);
+      CrossTrigger_Total_hltHT->Fill(hltHT);
 
 
 
@@ -230,13 +236,17 @@ TriggerAnalyser::beginJob(){
       SingleLeptonHist = subDir_TrigDec.make<TH1D>("Single Lepton Trigger Decision", singleleptontrigger_.c_str(), 2, -0.5, 1.5);
       CrossTriggerCombinedHist = subDir_TrigDec.make<TH1D>("Added CrossTrigger Trigger Decision", CombinedTrigger.c_str(), 2, -0.5, 1.5);
 
-      subDir_TrigDiffEff = fileService->mkdir( "Trigger_Distributions" );
+      subDir_TrigDiffEff = fileService->mkdir( "Trigger Observables" );
 
-
-      CrossTrigger_Pass_JetPtHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Pass_JetPt", "CrossTriggerPass_Pt", 100, 0, 300);
-      CrossTrigger_Total_JetPtHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Total_JetPt", "Total_Pt", 100, 0, 300);
-      CrossTrigger_Pass_JetEtaHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Pass_JetEta", "CrossTriggerPass_Eta", 100, -3, 3);
-      CrossTrigger_Total_JetEtaHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Total_JetEta", "Total_Eta", 100, -3, 3);
+      subDir_TrigDiffEff_Jet = subDir_TrigDiffEff.mkdir( "Jets" );
+      CrossTrigger_Pass_JetPtHist = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Pass_JetPt", "CrossTriggerPass_Pt", 100, 0, 300);
+      CrossTrigger_Total_JetPtHist = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Total_JetPt", "Total_Pt", 100, 0, 300);
+      CrossTrigger_Pass_JetEtaHist = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Pass_JetEta", "CrossTriggerPass_Eta", 100, -3, 3);
+      CrossTrigger_Total_JetEtaHist = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Total_JetEta", "Total_Eta", 100, -3, 3);
+      CrossTrigger_Pass_JetMultiplicity = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Pass_JetMultiplicity", "Pass_JetMultiplicity", 15, 0, 15);
+      CrossTrigger_Total_JetMultiplicity = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Total_JetMultiplicity", "Total_JetMultiplicity", 15, 0, 15);
+      CrossTrigger_Pass_hltHT = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Pass_hltHT", "Pass_hltHT", 200, 0, 500);
+      CrossTrigger_Total_hltHT = subDir_TrigDiffEff_Jet.make<TH1D>("CrossTrigger_Total_hltHT", "Total_hltHT", 200, 0, 500);
 
       if ( hadronicleg_ == "SingleTop" ){
             subDir_Filter1 = fileService->mkdir( filter1_.c_str() );
