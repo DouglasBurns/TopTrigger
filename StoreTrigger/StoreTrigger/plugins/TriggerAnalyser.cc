@@ -30,6 +30,7 @@ TriggerAnalyser::TriggerAnalyser(const edm::ParameterSet& iConfig) :
     hltInputTag_(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("HLTInputTag"))),
     triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("HLTriggerObjects"))),
     jets_(consumes<std::vector<pat::Jet>>(iConfig.getParameter<edm::InputTag>("jets"))),
+    mets_(consumes<std::vector<pat::MET>>(iConfig.getParameter<edm::InputTag>("mets"))),
     singleleptontrigger_(iConfig.getParameter <std::string> ("SingleLeptonTriggerInput")),
     crosstrigger_(iConfig.getParameter <std::string> ("CrossTriggerInput")),
     filter1_(iConfig.getParameter <std::string> ("FilterInput1")),
@@ -62,7 +63,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       CombinedTrigger.append(" and ");
       CombinedTrigger.append(crosstrigger_.c_str());
 
-      std::cout << "Lepton Leg : " << leptonicleg_ << std::endl;
+      // std::cout << "Lepton Leg : " << leptonicleg_ << std::endl;
 
       using namespace edm;
 
@@ -70,10 +71,12 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       edm::Handle < edm::TriggerResults > triggerResults;
       edm::Handle < pat::TriggerObjectStandAloneCollection > triggerObjects;
       edm::Handle < std::vector<pat::Jet> > jets;
-      
+      edm::Handle < std::vector<pat::MET> > mets;
+
       iEvent.getByToken(hltInputTag_, triggerResults);
       iEvent.getByToken(triggerObjects_, triggerObjects);
       iEvent.getByToken(jets_, jets);
+      iEvent.getByToken(mets_, mets);
 
       const edm::TriggerNames &TrigNames = iEvent.triggerNames(*triggerResults); 
 
@@ -221,7 +224,7 @@ TriggerAnalyser::beginJob(){
 
       subDir_TrigDiffEff = fileService->mkdir( "Trigger_Distributions" );
 
-      
+
       CrossTrigger_Pass_JetPtHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Pass_JetPt", "CrossTriggerPass_Pt", 100, 0, 300);
       CrossTrigger_Total_JetPtHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Total_JetPt", "Total_Pt", 100, 0, 300);
       CrossTrigger_Pass_JetEtaHist = subDir_TrigDiffEff.make<TH1D>("CrossTrigger_Pass_JetEta", "CrossTriggerPass_Eta", 100, -3, 3);
