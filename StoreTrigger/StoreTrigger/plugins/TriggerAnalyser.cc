@@ -32,6 +32,7 @@ TriggerAnalyser::TriggerAnalyser(const edm::ParameterSet& iConfig) :
     jets_(consumes<std::vector<pat::Jet>>(iConfig.getParameter<edm::InputTag>("jets"))),
     mets_(consumes<std::vector<pat::MET>>(iConfig.getParameter<edm::InputTag>("mets"))),
     electrons_(consumes<std::vector<pat::Electron>>(iConfig.getParameter<edm::InputTag>("electrons"))),
+    muons_(consumes<std::vector<pat::Muon>>(iConfig.getParameter<edm::InputTag>("muons"))),
     singleleptontrigger_(iConfig.getParameter <std::string> ("SingleLeptonTriggerInput")),
     crosstrigger_(iConfig.getParameter <std::string> ("CrossTriggerInput")),
     filter1_(iConfig.getParameter <std::string> ("FilterInput1")),
@@ -74,16 +75,20 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       edm::Handle < std::vector<pat::Jet> > jets;
       edm::Handle < std::vector<pat::MET> > mets;
       edm::Handle < std::vector<pat::Electron> > electrons;
+      edm::Handle < std::vector<pat::Muon> > muons;
 
       iEvent.getByToken(hltInputTag_, triggerResults);
       iEvent.getByToken(triggerObjects_, triggerObjects);
       iEvent.getByToken(jets_, jets);
       iEvent.getByToken(mets_, mets);
       iEvent.getByToken(electrons_, electrons);
+      iEvent.getByToken(muons_, muons);
 
       const edm::TriggerNames &TrigNames = iEvent.triggerNames(*triggerResults); 
 
       for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
+
+            std::cout << "Trigger " << i << " in Menu : " << TrigNames.triggerName(i) << std::endl;
             if ( TrigNames.triggerName(i).find(singleleptontrigger_) != std::string::npos ) {
                   singleleptonIndex = i;
             }

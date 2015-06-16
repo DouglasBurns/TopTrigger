@@ -11,6 +11,7 @@
 #include "DataFormats/PatCandidates/interface/Jet.h"
 #include "DataFormats/PatCandidates/interface/MET.h"
 #include "DataFormats/PatCandidates/interface/Electron.h"
+#include "DataFormats/PatCandidates/interface/Muon.h"
 
 #include <FWCore/ServiceRegistry/interface/Service.h>
 #include <CommonTools/UtilAlgos/interface/TFileService.h>
@@ -43,6 +44,7 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       edm::EDGetTokenT<std::vector<pat::Jet>> jets_;
       edm::EDGetTokenT<std::vector<pat::MET>> mets_;
       edm::EDGetTokenT<std::vector<pat::Electron>> electrons_;
+      edm::EDGetTokenT<std::vector<pat::Muon>> muons_;
       const std::string singleleptontrigger_;
       const std::string crosstrigger_;
       const std::string filter1_;
