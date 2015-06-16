@@ -31,6 +31,7 @@ TriggerAnalyser::TriggerAnalyser(const edm::ParameterSet& iConfig) :
     triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("HLTriggerObjects"))),
     jets_(consumes<std::vector<pat::Jet>>(iConfig.getParameter<edm::InputTag>("jets"))),
     mets_(consumes<std::vector<pat::MET>>(iConfig.getParameter<edm::InputTag>("mets"))),
+    electrons_(consumes<std::vector<pat::Electron>>(iConfig.getParameter<edm::InputTag>("electrons"))),
     singleleptontrigger_(iConfig.getParameter <std::string> ("SingleLeptonTriggerInput")),
     crosstrigger_(iConfig.getParameter <std::string> ("CrossTriggerInput")),
     filter1_(iConfig.getParameter <std::string> ("FilterInput1")),
@@ -72,11 +73,13 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       edm::Handle < pat::TriggerObjectStandAloneCollection > triggerObjects;
       edm::Handle < std::vector<pat::Jet> > jets;
       edm::Handle < std::vector<pat::MET> > mets;
+      edm::Handle < std::vector<pat::Electron> > electrons;
 
       iEvent.getByToken(hltInputTag_, triggerResults);
       iEvent.getByToken(triggerObjects_, triggerObjects);
       iEvent.getByToken(jets_, jets);
       iEvent.getByToken(mets_, mets);
+      iEvent.getByToken(electrons_, electrons);
 
       const edm::TriggerNames &TrigNames = iEvent.triggerNames(*triggerResults); 
 
