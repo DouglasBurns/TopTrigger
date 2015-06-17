@@ -29,6 +29,7 @@
 TriggerAnalyser::TriggerAnalyser(const edm::ParameterSet& iConfig) :
     hltInputTag_(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("HLTInputTag"))),
     triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("HLTriggerObjects"))),
+    genjets_(consumes<std::vector<reco::GenJet>>(iConfig.getParameter<edm::InputTag>("genjets"))),
     jets_(consumes<std::vector<pat::Jet>>(iConfig.getParameter<edm::InputTag>("jets"))),
     mets_(consumes<std::vector<pat::MET>>(iConfig.getParameter<edm::InputTag>("mets"))),
     electrons_(consumes<std::vector<pat::Electron>>(iConfig.getParameter<edm::InputTag>("electrons"))),
@@ -72,6 +73,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       // std::cout << "In analyze" << std::endl;
       edm::Handle < edm::TriggerResults > triggerResults;
       edm::Handle < pat::TriggerObjectStandAloneCollection > triggerObjects;
+      edm::Handle < std::vector<reco::GenJet> > genjets;
       edm::Handle < std::vector<pat::Jet> > jets;
       edm::Handle < std::vector<pat::MET> > mets;
       edm::Handle < std::vector<pat::Electron> > electrons;
@@ -79,6 +81,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
       iEvent.getByToken(hltInputTag_, triggerResults);
       iEvent.getByToken(triggerObjects_, triggerObjects);
+      iEvent.getByToken(genjets_, genjets);
       iEvent.getByToken(jets_, jets);
       iEvent.getByToken(mets_, mets);
       iEvent.getByToken(electrons_, electrons);
@@ -178,7 +181,64 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
 
 
+
+
+
+ if ( leptonicleg_ == "Ele" ){
+            for( auto lepton = electrons->begin(); lepton != electrons->end(); ++lepton ){ 
+                  if (electrons->size() == 0){
+                        continue;
+                  }
+
+                  std::cout << "Number of leptons in Ele event : " << electrons->size() << std::endl;
+                  leptonPt = lepton->pt();
+                  leptonEta = lepton->eta();
+                  leptonEnergy = lepton->energy();
+
+                  if(CrossTriggerTrigDecision==true){
+                        CrossTrigger_Pass_LeptonPtHist->Fill(leptonPt);
+                        CrossTrigger_Pass_LeptonEtaHist->Fill(leptonEta);
+                        CrossTrigger_Pass_LeptonEnergyHist->Fill(leptonEnergy);
+                  }
+                  CrossTrigger_Total_LeptonPtHist->Fill(leptonPt);
+                  CrossTrigger_Total_LeptonEtaHist->Fill(leptonEta);
+                  CrossTrigger_Total_LeptonEnergyHist->Fill(leptonEnergy);
+            }
+      }
+      else if ( leptonicleg_ == "Mu" ){
+            for( auto lepton = muons->begin(); lepton != muons->end(); ++lepton ){ 
+                  if (muons->size() == 0) continue;
+                  
+                  leptonPt = lepton->pt();
+                  leptonEta = lepton->eta();
+                  leptonEnergy = lepton->energy();
+
+                  if(CrossTriggerTrigDecision==true){
+                        CrossTrigger_Pass_LeptonPtHist->Fill(leptonPt);
+                        CrossTrigger_Pass_LeptonEtaHist->Fill(leptonEta);
+                        CrossTrigger_Pass_LeptonEnergyHist->Fill(leptonEnergy);
+                  }
+                  CrossTrigger_Total_LeptonPtHist->Fill(leptonPt);
+                  CrossTrigger_Total_LeptonEtaHist->Fill(leptonEta);
+                  CrossTrigger_Total_LeptonEnergyHist->Fill(leptonEnergy);
+            }
+      }
+
+
+
+
+
+
+
+
       for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
+
+
+
+// matching stuff here?
+
+
+
 
             if ( hadronicleg_ == "SingleTop" ){
                   for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
@@ -268,6 +328,14 @@ TriggerAnalyser::beginJob(){
       CrossTrigger_Total_METPtHist = subDir_TrigDiffEff_MET.make<TH1D>("CrossTrigger_Total_METPt", "Total_Pt", 100, 0, 300);
       CrossTrigger_Pass_METEnergyHist = subDir_TrigDiffEff_MET.make<TH1D>("CrossTrigger_Pass_METEnergy", "CrossTriggerPass_Energy", 100, 0, 300);
       CrossTrigger_Total_METEnergyHist = subDir_TrigDiffEff_MET.make<TH1D>("CrossTrigger_Total_METEnergy", "Total_Energy", 100, 0, 300);
+
+      subDir_TrigDiffEff_Lepton = subDir_TrigDiffEff.mkdir( "Leading_Lepton" );
+      CrossTrigger_Pass_LeptonPtHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Pass_LeptonPt", "CrossTriggerPass_Pt", 100, 0, 300);
+      CrossTrigger_Total_LeptonPtHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Total_LeptonPt", "CrossTriggerTotal_Pt", 100, 0, 300);
+      CrossTrigger_Pass_LeptonEtaHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Pass_LeptonEta", "CrossTriggerPass_Eta", 100, -3, 3);
+      CrossTrigger_Total_LeptonEtaHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Total_LeptonEta", "CrossTriggerTotal_Eta", 100, -3, 3);
+      CrossTrigger_Pass_LeptonEnergyHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Pass_LeptonEnergy", "CrossTriggerPass_Energy", 100, 0, 300);
+      CrossTrigger_Total_LeptonEnergyHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Total_LeptonEnergy", "CrossTriggerTotal_Energy", 100, 0, 300);
 
      if ( hadronicleg_ == "SingleTop" ){
             subDir_Filter1 = fileService->mkdir( filter1_.c_str() );

@@ -11,6 +11,8 @@ process.source = cms.Source("PoolSource",
     # replace 'myfile.root' with the source file you want to use
     fileNames = cms.untracked.vstring(
 		'root://xrootd.unl.edu//store/mc/RunIISpring15DR74/TTJets_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8/MINIAODSIM/Asympt25ns_MCRUN2_74_V9-v1/00000/022B08C4-C702-E511-9995-D4856459AC30.root'
+        # 'root://xrootd.unl.edu//store/mc/RunIISpring15DR74/TTJets_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8/MINIAODSIM/Asympt50ns_MCRUN2_74_V9A-v1/00000/00466730-F801-E511-9594-549F35AF450A.root'
+
     )
 )
 
@@ -18,6 +20,7 @@ process.source = cms.Source("PoolSource",
 process.Template = cms.EDAnalyzer('TriggerAnalyser',
     HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
     HLTriggerObjects = cms.InputTag('selectedPatTrigger','','PAT'),
+    genjets = cms.InputTag('slimmedGenJets','','PAT'),
     jets = cms.InputTag('slimmedJets','','PAT'),
     mets = cms.InputTag('slimmedMETs','','PAT'),
     electrons = cms.InputTag('slimmedElectrons','','PAT'),
