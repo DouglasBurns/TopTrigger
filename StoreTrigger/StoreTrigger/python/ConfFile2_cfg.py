@@ -18,7 +18,7 @@ process.source = cms.Source("PoolSource",
 
 # Input Triggers and Filters
 process.Template = cms.EDAnalyzer('TriggerAnalyser',
-    HLTInputTag = cms.InputTag('TriggerResults','','HLT'),
+    HLTriggerResults = cms.InputTag('TriggerResults','','HLT'),
     HLTriggerObjects = cms.InputTag('selectedPatTrigger','','PAT'),
     genjets = cms.InputTag('slimmedGenJets','','PAT'),
     jets = cms.InputTag('slimmedJets','','PAT'),
