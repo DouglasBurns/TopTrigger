@@ -61,7 +61,7 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       TH1D *Filter1_Pt, *Filter1_Eta, *Filter1_Phi;
       TH1D *Filter2_Pt, *Filter2_Eta, *Filter2_Phi;
       TH1D *Filter3_Pt, *Filter3_Eta, *Filter3_Phi;
-      TH1D *CrossTrigger_Pass_JetPtHist, *CrossTrigger_Pass_JetEtaHist, *CrossTrigger_Total_JetPtHist, *CrossTrigger_Total_JetEtaHist, *CrossTrigger_Pass_JetMultiplicity, *CrossTrigger_Total_JetMultiplicity, *CrossTrigger_Pass_hltHT, *CrossTrigger_Total_hltHT;
+      TH1D *CrossTrigger_Pass_JetPtHist, *CrossTrigger_Pass_JetEtaHist, *CrossTrigger_Total_JetPtHist, *CrossTrigger_Total_JetEtaHist, *CrossTrigger_Pass_JetMultiplicity, *CrossTrigger_Total_JetMultiplicity, *CrossTrigger_Pass_hltHT, *CrossTrigger_Total_hltHT, *CrossTrigger_Pass_greatestBtag, *CrossTrigger_Total_greatestBtag;
       TH1D *CrossTrigger_Pass_METEnergyHist, *CrossTrigger_Total_METEnergyHist;
       TH1D *CrossTrigger_Pass_LeptonPtHist, *CrossTrigger_Pass_LeptonEnergyHist, *CrossTrigger_Pass_LeptonEtaHist, *CrossTrigger_Total_LeptonPtHist, *CrossTrigger_Total_LeptonEnergyHist, *CrossTrigger_Total_LeptonEtaHist;
       TH1D *Filter1_matchedJetPt, *Filter2_matchedJetPt, *Filter3_matchedJetPt;
@@ -70,7 +70,7 @@ class TriggerAnalyser : public edm::EDAnalyzer {
 
       bool isJet, isMatched, SingleLeptonTrigDecision, CrossTriggerTrigDecision, CrossTriggerCombinedTrigDecision = false;
       unsigned int crossIndex, singleleptonIndex = 9999;
-      float jetPt, jetEta, hltHT = 0;
+      float jetCSV, hltHT = 0;
       float metPt, metEnergy = 0;
       float leptonPt, leptonEta, leptonEnergy = 0;
       int jetMultiplicity, matchedJetIndex = 0;
