@@ -15,10 +15,12 @@
 
 #include <FWCore/ServiceRegistry/interface/Service.h>
 #include <CommonTools/UtilAlgos/interface/TFileService.h>
+#include <DataFormats/Math/interface/deltaR.h>
 
 #include <TString.h>
 #include <string>
 #include <TH1D.h>
+#include <limits>
 
 //
 // class declaration
@@ -37,9 +39,9 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
       virtual void endJob() override;
 
+// edm::Association< TriggerObjectStandAloneCollection > TriggerObjectStandAloneMatch:
 
-      // const edm::InputTag hltInputTag_;
-      edm::EDGetTokenT<edm::TriggerResults> hltInputTag_;
+      edm::EDGetTokenT<edm::TriggerResults> triggerResults_;
       edm::EDGetTokenT<pat::TriggerObjectStandAloneCollection> triggerObjects_;
       edm::EDGetTokenT<std::vector<reco::GenJet>> genjets_;
       edm::EDGetTokenT<std::vector<pat::Jet>> jets_;
@@ -51,10 +53,12 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       const std::string filter1_;
       const std::string filter2_;
       const std::string filter3_;
+      const std::string btagger_;
       const std::string hadronicleg_;
       const std::string leptonicleg_;
-
       std::string CombinedTrigger = "";
+
+      // edm::Association< pat::TriggerObjectStandAloneCollection > TriggerObjectMatch
 
       edm::Service<TFileService> fileService;
       TH1D *SingleLeptonHist, *CrossTriggerHist, *CrossTriggerCombinedHist;
@@ -64,15 +68,17 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       TH1D *CrossTrigger_Pass_JetPtHist, *CrossTrigger_Pass_JetEtaHist, *CrossTrigger_Total_JetPtHist, *CrossTrigger_Total_JetEtaHist, *CrossTrigger_Pass_JetMultiplicity, *CrossTrigger_Total_JetMultiplicity, *CrossTrigger_Pass_hltHT, *CrossTrigger_Total_hltHT;
       TH1D *CrossTrigger_Pass_METPtHist, *CrossTrigger_Total_METPtHist, *CrossTrigger_Pass_METEnergyHist, *CrossTrigger_Total_METEnergyHist;
       TH1D *CrossTrigger_Pass_LeptonPtHist, *CrossTrigger_Pass_LeptonEnergyHist, *CrossTrigger_Pass_LeptonEtaHist, *CrossTrigger_Total_LeptonPtHist, *CrossTrigger_Total_LeptonEnergyHist, *CrossTrigger_Total_LeptonEtaHist;
-
+      TH1D *Filter1_matchedJetPt;
       TFileDirectory subDir_TrigDec, subDir_TrigDiffEff, subDir_TrigDiffEff_Jet, subDir_TrigDiffEff_MET, subDir_TrigDiffEff_Lepton, subDir_Filter1, subDir_Filter2, subDir_Filter3;
+      TFileDirectory subDir_Filter1_Observables, subDir_Filter1_MatchedJetObservables, subDir_Filter2_Observables, subDir_Filter2_MatchedJetObservables, subDir_Filter3_Observables, subDir_Filter3_MatchedJetObservables;
+      // double minDR2 = numeric_limits<double>::infinity();
 
-      bool SingleLeptonTrigDecision, CrossTriggerTrigDecision, CrossTriggerCombinedTrigDecision = false;
+      bool isJet, isMatched, SingleLeptonTrigDecision, CrossTriggerTrigDecision, CrossTriggerCombinedTrigDecision = false;
       unsigned int crossIndex, singleleptonIndex = 9999;
       float jetPt, jetEta, hltHT = 0;
       float metPt, metEnergy = 0;
       float leptonPt, leptonEta, leptonEnergy = 0;
-      int jetMultiplicity = 0;
+      int jetMultiplicity, matchedJetIndex = 0;
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) override;

@@ -27,7 +27,7 @@
 
 
 TriggerAnalyser::TriggerAnalyser(const edm::ParameterSet& iConfig) :
-    hltInputTag_(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("HLTInputTag"))),
+    triggerResults_(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("HLTriggerResults"))),
     triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("HLTriggerObjects"))),
     genjets_(consumes<std::vector<reco::GenJet>>(iConfig.getParameter<edm::InputTag>("genjets"))),
     jets_(consumes<std::vector<pat::Jet>>(iConfig.getParameter<edm::InputTag>("jets"))),
@@ -39,6 +39,7 @@ TriggerAnalyser::TriggerAnalyser(const edm::ParameterSet& iConfig) :
     filter1_(iConfig.getParameter <std::string> ("FilterInput1")),
     filter2_(iConfig.getParameter <std::string> ("FilterInput2")),
     filter3_(iConfig.getParameter <std::string> ("FilterInput3")),
+    btagger_(iConfig.getParameter <std::string> ("BTagger")),
     hadronicleg_(iConfig.getParameter <std::string> ("HadronicLeg")),
     leptonicleg_(iConfig.getParameter <std::string> ("LeptonicLeg")){
    //now do what ever initialization is needed
@@ -79,7 +80,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       edm::Handle < std::vector<pat::Electron> > electrons;
       edm::Handle < std::vector<pat::Muon> > muons;
 
-      iEvent.getByToken(hltInputTag_, triggerResults);
+      iEvent.getByToken(triggerResults_, triggerResults);
       iEvent.getByToken(triggerObjects_, triggerObjects);
       iEvent.getByToken(genjets_, genjets);
       iEvent.getByToken(jets_, jets);
@@ -143,6 +144,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             if( jet->pt()<30. || std::abs(jet->eta())>3.0 ){
                   continue; 
             }
+            std::cout << "Btag Value : " << jet->bDiscriminator(btagger_) << std::endl;
 
             jetPt = jet->pt();
             jetEta = jet->eta();
@@ -184,13 +186,11 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
 
 
- if ( leptonicleg_ == "Ele" ){
+      if ( leptonicleg_ == "Ele" ){
             for( auto lepton = electrons->begin(); lepton != electrons->end(); ++lepton ){ 
-                  if (electrons->size() == 0){
-                        continue;
-                  }
-
-                  std::cout << "Number of leptons in Ele event : " << electrons->size() << std::endl;
+                  if (electrons->size() == 0) continue;
+                  
+                  // std::cout << "Number of leptons in Ele event : " << electrons->size() << std::endl;
                   leptonPt = lepton->pt();
                   leptonEta = lepton->eta();
                   leptonEnergy = lepton->energy();
@@ -233,60 +233,100 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
       for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
 
+            // std::cout << "****************" << std::endl;
 
-
-// matching stuff here?
-
-
-
-
-            if ( hadronicleg_ == "SingleTop" ){
-                  for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
-                        if ( obj.filterLabels()[i].find(filter1_) != std::string::npos ) {
-                                Filter1_Pt->Fill(obj.pt());
-                                Filter1_Eta->Fill(obj.eta());
-                                Filter1_Phi->Fill(obj.phi());
-                        }
-                  }
-                  for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
-                        if ( obj.filterLabels()[i].find(filter2_) != std::string::npos ) {
-                                Filter2_Pt->Fill(obj.pt());
-                                Filter2_Eta->Fill(obj.eta());
-                                Filter2_Phi->Fill(obj.phi());
-                        }
-                  }  
+            isJet = false;            
+            for (unsigned h = 0; h < obj.filterIds().size(); ++h){
+                  if (obj.filterIds()[h] == 85 ) isJet = true;
             }
+            if (!isJet) continue;
+
+
+            double minDR2 = 9999;
+            int JetIndex = 0;
+            isMatched = false;
+            for( auto jet = jets->begin(); jet != jets->end(); ++jet ){ //reco jets are pat jets
+
+                  // Do not consider too soft jets. The cut is as in JME-13-005
+                  if (jet->pt() < 8.) continue; //need?
+                      
+                      
+                  // Calculate dR
+                  double const dR2 = reco::deltaR2(obj, *jet);//working? min delta r sq thereofere .3*.3
+                  // std::cout << dR2 << std::endl;
+
+                  if (dR2 < minDR2){
+                        minDR2 = dR2;
+                        matchedJetIndex = JetIndex;
+                        // std::cout << "New Min : " << minDR2 << std::endl;
+                  }
+                  ++JetIndex;
+            }
+            // std::cout << "****************" << std::endl;
+            // std::cout << minDR2 << std::endl;
+
+            if (minDR2 < 0.3 * 0.3) isMatched = true;
+
+
+
+
+            // for (unsigned h = 0; h < obj.filterIds().size(); ++h) std::cout << " " << obj.filterIds()[h];
+            // std::cout << std::endl;
+
+            for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
+
+                  if ( hadronicleg_ == "SingleTop" ){
+
+                        if ( obj.filterLabels()[i].find(filter1_) != std::string::npos ) {
+                              Filter1_Pt->Fill(obj.pt());
+                              Filter1_Eta->Fill(obj.eta());
+                              Filter1_Phi->Fill(obj.phi());
+
+                              if (isMatched){
+                                    Filter1_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());
+                                    // std::cout << "Btag Value : " << jets->at(matchedJetIndex).bDiscriminator(btagger_) << std::endl;
+                              }
+
+                              // std::cout << "\t   Collection: " << obj.collection() << std::endl;//85 for jets, 86 for Bjets, 0 for No idea - HLTReco/interface/TriggerTypeDefs.h
+                              // for (unsigned h = 0; h < obj.filterIds().size(); ++h) std::cout << " " << obj.filterLabels()[i] << " " << obj.filterIds()[h] << std::endl;
+
+                        }
+                  
+                        if ( obj.filterLabels()[i].find(filter2_) != std::string::npos ) {//WHY IS THIS BIT NOT WORKING?
+                              Filter2_Pt->Fill(obj.pt());
+                              Filter2_Eta->Fill(obj.eta());
+                              Filter2_Phi->Fill(obj.phi());
+                        }
             
-            if ( hadronicleg_ == "TTBarJet30" ){
-                  for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
-                        if ( obj.filterLabels()[i].find(filter1_) != std::string::npos ) {
-                                Filter1_Pt->Fill(obj.pt());
-                                Filter1_Eta->Fill(obj.eta());
-                                Filter1_Phi->Fill(obj.phi());
-                        }
                   }
-            }
+            
+                  if ( hadronicleg_ == "TTBarJet30" ){
 
-            if ( hadronicleg_ == "TTBarJet304050" ){
-                  for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
                         if ( obj.filterLabels()[i].find(filter1_) != std::string::npos ) {
-                                Filter1_Pt->Fill(obj.pt());
-                                Filter1_Eta->Fill(obj.eta());
-                                Filter1_Phi->Fill(obj.phi());
+                              Filter1_Pt->Fill(obj.pt());
+                              Filter1_Eta->Fill(obj.eta());
+                              Filter1_Phi->Fill(obj.phi());
                         }
+                  
                   }
-                  for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
-                        if ( obj.filterLabels()[i].find(filter2_) != std::string::npos ) {
-                                Filter2_Pt->Fill(obj.pt());
-                                Filter2_Eta->Fill(obj.eta());
-                                Filter2_Phi->Fill(obj.phi());
+
+                  if ( hadronicleg_ == "TTBarJet304050" ){
+                        if ( obj.filterLabels()[i].find(filter1_) != std::string::npos ) {
+                              Filter1_Pt->Fill(obj.pt());
+                              Filter1_Eta->Fill(obj.eta());
+                              Filter1_Phi->Fill(obj.phi());
                         }
-                  }    
-                  for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
+                  
+                        if ( obj.filterLabels()[i].find(filter2_) != std::string::npos ) {
+                              Filter2_Pt->Fill(obj.pt());
+                              Filter2_Eta->Fill(obj.eta());
+                              Filter2_Phi->Fill(obj.phi());
+                        }
+                     
                         if ( obj.filterLabels()[i].find(filter3_) != std::string::npos ) {
-                                Filter3_Pt->Fill(obj.pt());
-                                Filter3_Eta->Fill(obj.eta());
-                                Filter3_Phi->Fill(obj.phi());
+                              Filter3_Pt->Fill(obj.pt());
+                              Filter3_Eta->Fill(obj.eta());
+                              Filter3_Phi->Fill(obj.phi());
                         }
                   }
             }
@@ -338,39 +378,63 @@ TriggerAnalyser::beginJob(){
       CrossTrigger_Total_LeptonEnergyHist = subDir_TrigDiffEff_Lepton.make<TH1D>("CrossTrigger_Total_LeptonEnergy", "CrossTriggerTotal_Energy", 100, 0, 300);
 
      if ( hadronicleg_ == "SingleTop" ){
+
             subDir_Filter1 = fileService->mkdir( filter1_.c_str() );
-            Filter1_Pt = subDir_Filter1.make<TH1D>("Pt", "Pt", 100, 0, 300);
-            Filter1_Eta = subDir_Filter1.make<TH1D>("Eta", "Eta", 100, -5, 5);
-            Filter1_Phi = subDir_Filter1.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+
+            subDir_Filter1_Observables = subDir_Filter1.mkdir( "Filter Observables" );
+            Filter1_Pt = subDir_Filter1_Observables.make<TH1D>("Pt", "Pt", 100, 0, 300);
+            Filter1_Eta = subDir_Filter1_Observables.make<TH1D>("Eta", "Eta", 100, -5, 5);
+            Filter1_Phi = subDir_Filter1_Observables.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+            subDir_Filter1_MatchedJetObservables = subDir_Filter1.mkdir( "matched RECO Jet Observables" );
+            Filter1_matchedJetPt = subDir_Filter1_MatchedJetObservables.make<TH1D>("matched Jet Pt", "matched Jet Pt", 100, 0, 300);
 
             subDir_Filter2 = fileService->mkdir( filter2_.c_str() );
-            Filter2_Pt = subDir_Filter2.make<TH1D>("Pt", "Pt", 100, 0, 300);
-            Filter2_Eta = subDir_Filter2.make<TH1D>("Eta", "Eta", 100, -5, 5);
-            Filter2_Phi = subDir_Filter2.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+
+            subDir_Filter2_Observables = subDir_Filter1.mkdir( "Filter Observables" );
+            Filter2_Pt = subDir_Filter2_Observables.make<TH1D>("Pt", "Pt", 100, 0, 300);
+            Filter2_Eta = subDir_Filter2_Observables.make<TH1D>("Eta", "Eta", 100, -5, 5);
+            Filter2_Phi = subDir_Filter2_Observables.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+            subDir_Filter2_MatchedJetObservables = subDir_Filter2.mkdir( "matched RECO Jet Observables" );
+
       }
       
       if ( hadronicleg_ == "TTBarJet30" ){
+
             subDir_Filter1 = fileService->mkdir( filter1_.c_str() );
-            Filter1_Pt = subDir_Filter1.make<TH1D>("Pt", "Pt", 100, 0, 300);
-            Filter1_Eta = subDir_Filter1.make<TH1D>("Eta", "Eta", 100, -5, 5);
-            Filter1_Phi = subDir_Filter1.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+
+            subDir_Filter1_Observables = subDir_Filter1.mkdir( "Filter Observables" );
+            Filter1_Pt = subDir_Filter1_Observables.make<TH1D>("Pt", "Pt", 100, 0, 300);
+            Filter1_Eta = subDir_Filter1_Observables.make<TH1D>("Eta", "Eta", 100, -5, 5);
+            Filter1_Phi = subDir_Filter1_Observables.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+            subDir_Filter1_MatchedJetObservables = subDir_Filter1.mkdir( "matched RECO Jet Observables" );
+
       }
       
       if ( hadronicleg_ == "TTBarJet304050" ){
+
             subDir_Filter1 = fileService->mkdir( filter1_.c_str() );
-            Filter1_Pt = subDir_Filter1.make<TH1D>("Pt", "Pt", 100, 0, 300);
-            Filter1_Eta = subDir_Filter1.make<TH1D>("Eta", "Eta", 100, -5, 5);
-            Filter1_Phi = subDir_Filter1.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+
+            subDir_Filter1_Observables = subDir_Filter1.mkdir( "Filter Observables" );
+            Filter1_Pt = subDir_Filter1_Observables.make<TH1D>("Pt", "Pt", 100, 0, 300);
+            Filter1_Eta = subDir_Filter1_Observables.make<TH1D>("Eta", "Eta", 100, -5, 5);
+            Filter1_Phi = subDir_Filter1_Observables.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+            subDir_Filter1_MatchedJetObservables = subDir_Filter1.mkdir( "matched RECO Jet Observables" );
 
             subDir_Filter2 = fileService->mkdir( filter2_.c_str() );
-            Filter2_Pt = subDir_Filter2.make<TH1D>("Pt", "Pt", 100, 0, 300);
-            Filter2_Eta = subDir_Filter2.make<TH1D>("Eta", "Eta", 100, -5, 5);
-            Filter2_Phi = subDir_Filter2.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+
+            subDir_Filter2_Observables = subDir_Filter1.mkdir( "Filter Observables" );
+            Filter2_Pt = subDir_Filter2_Observables.make<TH1D>("Pt", "Pt", 100, 0, 300);
+            Filter2_Eta = subDir_Filter2_Observables.make<TH1D>("Eta", "Eta", 100, -5, 5);
+            Filter2_Phi = subDir_Filter2_Observables.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+            subDir_Filter2_MatchedJetObservables = subDir_Filter2.mkdir( "matched RECO Jet Observables" );
 
             subDir_Filter3 = fileService->mkdir( filter3_.c_str() );
-            Filter3_Pt = subDir_Filter3.make<TH1D>("Pt", "Pt", 100, 0, 300);
-            Filter3_Eta = subDir_Filter3.make<TH1D>("Eta", "Eta", 100, -5, 5);
-            Filter3_Phi = subDir_Filter3.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+
+            subDir_Filter3_Observables = subDir_Filter1.mkdir( "Filter Observables" );
+            Filter3_Pt = subDir_Filter3_Observables.make<TH1D>("Pt", "Pt", 100, 0, 300);
+            Filter3_Eta = subDir_Filter3_Observables.make<TH1D>("Eta", "Eta", 100, -5, 5);
+            Filter3_Phi = subDir_Filter3_Observables.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
+            subDir_Filter3_MatchedJetObservables = subDir_Filter3.mkdir( "matched RECO Jet Observables" );
       }
 }
 

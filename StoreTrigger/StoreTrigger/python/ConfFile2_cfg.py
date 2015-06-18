@@ -30,6 +30,7 @@ process.Template = cms.EDAnalyzer('TriggerAnalyser',
     FilterInput1 = cms.string(''),
     FilterInput2 = cms.string(''),
     FilterInput3 = cms.string(''),
+    BTagger = cms.string('combinedInclusiveSecondaryVertexV2BJetTags'),
     HadronicLeg = cms.string(''),
     LeptonicLeg = cms.string(''),
 )
