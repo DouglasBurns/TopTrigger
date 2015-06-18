@@ -90,8 +90,11 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
       const edm::TriggerNames &TrigNames = iEvent.triggerNames(*triggerResults); 
 
-      for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
 
+      // TRIGGER NAMES ------------------------------------------------------------------------------ //
+
+      // Find and store indices of the input triggers
+      for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
             // std::cout << "Trigger " << i << " in Menu : " << TrigNames.triggerName(i) << std::endl;
             if ( TrigNames.triggerName(i).find(singleleptontrigger_) != std::string::npos ) {
                   singleleptonIndex = i;
@@ -102,12 +105,15 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       }
 
 
+      // TRIGGER RESULTS ---------------------------------------------------------------------------- //
+
+      // Find trigger result for single lepton trigger and store in histogram
       if ( singleleptonIndex < triggerResults->size() ) {
             SingleLeptonTrigDecision = triggerResults->accept(singleleptonIndex);
             SingleLeptonHist->Fill(SingleLeptonTrigDecision);
 
             if (SingleLeptonTrigDecision == true){
-
+                  // If passes single lepton trigger find and store trigger results for the cross trigger in histogram
                   if ( crossIndex < triggerResults->size() ) {
                         CrossTriggerCombinedTrigDecision = triggerResults->accept(crossIndex);
                         CrossTriggerCombinedHist->Fill(CrossTriggerCombinedTrigDecision);
@@ -118,34 +124,31 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                   }
             }
       }
-
       else {
             std::cout << "Looking for : " << singleleptontrigger_ << " but failed" << std::endl;
       }
 
-
+      // Find trigger result for cross trigger and store in histogram
       if ( crossIndex < triggerResults->size() ) {
             CrossTriggerTrigDecision = triggerResults->accept(crossIndex);
-            // if (CrossTriggerTrigDecision == true){
             CrossTriggerHist->Fill(CrossTriggerTrigDecision);
-            // }
       }
       else {
             std::cout << "Looking for : " << crosstrigger_ << " but failed" << std::endl;
       }
 
 
+      // JETS --------------------------------------------------------------------------------------- //
 
       jetMultiplicity = 0;
       hltHT = 0;
-      // Select jets and store distributions used for differential efficiencies
+
+      // Select jets and store distributions
       for( auto jet = jets->begin(); jet != jets->end(); ++jet ){ 
             // skip jets with low pT or outside the tracker acceptance
-            if( jet->pt()<30. || std::abs(jet->eta())>3.0 ){
-                  continue; 
-            }
-            std::cout << "Btag Value : " << jet->bDiscriminator(btagger_) << std::endl;
-
+            if( jet->pt()<30. || std::abs(jet->eta())>3.0 ) continue; 
+ 
+            // std::cout << "Btag Value : " << jet->bDiscriminator(btagger_) << std::endl;
             jetPt = jet->pt();
             jetEta = jet->eta();
             ++jetMultiplicity;
@@ -167,33 +170,29 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       CrossTrigger_Total_hltHT->Fill(hltHT);
 
 
+      // MET ---------------------------------------------------------------------------------------- //
 
       for( auto met = mets->begin(); met != mets->end(); ++met ){ 
 
-            metPt = met->pt();
             metEnergy = met->energy();//met pt = met energy
 
             if(CrossTriggerTrigDecision==true){
-                  CrossTrigger_Pass_METPtHist->Fill(metPt);
                   CrossTrigger_Pass_METEnergyHist->Fill(metEnergy);
             }
-            CrossTrigger_Total_METPtHist->Fill(metPt);
             CrossTrigger_Total_METEnergyHist->Fill(metEnergy);
       }
 
 
-
-
-
+      // LEADING LEPTONS ---------------------------------------------------------------------------- //
 
       if ( leptonicleg_ == "Ele" ){
-            for( auto lepton = electrons->begin(); lepton != electrons->end(); ++lepton ){ 
-                  if (electrons->size() == 0) continue;
-                  
-                  // std::cout << "Number of leptons in Ele event : " << electrons->size() << std::endl;
-                  leptonPt = lepton->pt();
-                  leptonEta = lepton->eta();
-                  leptonEnergy = lepton->energy();
+            if (electrons->size() != 0){ 
+                  auto lepton = electrons->at(0);//leading lepton
+
+                  // std::cout << "Lepton Pt : " << lepton.pt() << std::endl;
+                  leptonPt = lepton.pt();
+                  leptonEta = lepton.eta();
+                  leptonEnergy = lepton.energy();
 
                   if(CrossTriggerTrigDecision==true){
                         CrossTrigger_Pass_LeptonPtHist->Fill(leptonPt);
@@ -206,12 +205,12 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             }
       }
       else if ( leptonicleg_ == "Mu" ){
-            for( auto lepton = muons->begin(); lepton != muons->end(); ++lepton ){ 
-                  if (muons->size() == 0) continue;
-                  
-                  leptonPt = lepton->pt();
-                  leptonEta = lepton->eta();
-                  leptonEnergy = lepton->energy();
+            if (muons->size() != 0){
+                  auto lepton = muons->at(0);//leading lepton
+
+                  leptonPt = lepton.pt();
+                  leptonEta = lepton.eta();
+                  leptonEnergy = lepton.energy();
 
                   if(CrossTriggerTrigDecision==true){
                         CrossTrigger_Pass_LeptonPtHist->Fill(leptonPt);
@@ -229,6 +228,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
 
 
+      std::cout << "----------------------------" << std::endl;
 
 
       for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
@@ -241,7 +241,6 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             }
             if (!isJet) continue;
 
-
             double minDR2 = 9999;
             int JetIndex = 0;
             isMatched = false;
@@ -252,7 +251,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                       
                       
                   // Calculate dR
-                  double const dR2 = reco::deltaR2(obj, *jet);//working? min delta r sq thereofere .3*.3
+                  double const dR2 = reco::deltaR2(obj, *jet);//working? min delta r sq therefore .3*.3
                   // std::cout << dR2 << std::endl;
 
                   if (dR2 < minDR2){
@@ -284,18 +283,26 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
                               if (isMatched){
                                     Filter1_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());
-                                    // std::cout << "Btag Value : " << jets->at(matchedJetIndex).bDiscriminator(btagger_) << std::endl;
+                                    std::cout << "Btag Value : " << jets->at(matchedJetIndex).bDiscriminator(btagger_) << std::endl;
                               }
 
                               // std::cout << "\t   Collection: " << obj.collection() << std::endl;//85 for jets, 86 for Bjets, 0 for No idea - HLTReco/interface/TriggerTypeDefs.h
                               // for (unsigned h = 0; h < obj.filterIds().size(); ++h) std::cout << " " << obj.filterLabels()[i] << " " << obj.filterIds()[h] << std::endl;
 
+                              for (unsigned h = 0; h < obj.filterLabels().size(); ++h) std::cout << obj.filterLabels()[h] << std::endl;
+                              std::cout << "******************************" << std::endl;
                         }
                   
                         if ( obj.filterLabels()[i].find(filter2_) != std::string::npos ) {//WHY IS THIS BIT NOT WORKING?
+                              std::cout << "Found Pass BJet Filter" << std::endl;
                               Filter2_Pt->Fill(obj.pt());
                               Filter2_Eta->Fill(obj.eta());
                               Filter2_Phi->Fill(obj.phi());
+
+                              if (isMatched){
+                                    Filter2_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());
+                                    // std::cout << "Btag Value : " << jets->at(matchedJetIndex).bDiscriminator(btagger_) << std::endl;
+                              }
                         }
             
                   }
@@ -306,8 +313,11 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                               Filter1_Pt->Fill(obj.pt());
                               Filter1_Eta->Fill(obj.eta());
                               Filter1_Phi->Fill(obj.phi());
+
+                              if (isMatched){
+                                    Filter1_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());
+                              }
                         }
-                  
                   }
 
                   if ( hadronicleg_ == "TTBarJet304050" ){
@@ -315,18 +325,30 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                               Filter1_Pt->Fill(obj.pt());
                               Filter1_Eta->Fill(obj.eta());
                               Filter1_Phi->Fill(obj.phi());
+
+                              if (isMatched){
+                                    Filter1_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());
+                              }
                         }
                   
                         if ( obj.filterLabels()[i].find(filter2_) != std::string::npos ) {
                               Filter2_Pt->Fill(obj.pt());
                               Filter2_Eta->Fill(obj.eta());
                               Filter2_Phi->Fill(obj.phi());
+
+                              if (isMatched){
+                                    Filter2_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());
+                              }
                         }
                      
                         if ( obj.filterLabels()[i].find(filter3_) != std::string::npos ) {
                               Filter3_Pt->Fill(obj.pt());
                               Filter3_Eta->Fill(obj.eta());
                               Filter3_Phi->Fill(obj.phi());
+
+                              if (isMatched){
+                                    Filter3_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());
+                              }
                         }
                   }
             }
@@ -390,11 +412,12 @@ TriggerAnalyser::beginJob(){
 
             subDir_Filter2 = fileService->mkdir( filter2_.c_str() );
 
-            subDir_Filter2_Observables = subDir_Filter1.mkdir( "Filter Observables" );
+            subDir_Filter2_Observables = subDir_Filter2.mkdir( "Filter Observables" );
             Filter2_Pt = subDir_Filter2_Observables.make<TH1D>("Pt", "Pt", 100, 0, 300);
             Filter2_Eta = subDir_Filter2_Observables.make<TH1D>("Eta", "Eta", 100, -5, 5);
             Filter2_Phi = subDir_Filter2_Observables.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
             subDir_Filter2_MatchedJetObservables = subDir_Filter2.mkdir( "matched RECO Jet Observables" );
+            Filter2_matchedJetPt = subDir_Filter2_MatchedJetObservables.make<TH1D>("matched Jet Pt", "matched Jet Pt", 100, 0, 300);
 
       }
       
@@ -407,6 +430,7 @@ TriggerAnalyser::beginJob(){
             Filter1_Eta = subDir_Filter1_Observables.make<TH1D>("Eta", "Eta", 100, -5, 5);
             Filter1_Phi = subDir_Filter1_Observables.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
             subDir_Filter1_MatchedJetObservables = subDir_Filter1.mkdir( "matched RECO Jet Observables" );
+            Filter1_matchedJetPt = subDir_Filter1_MatchedJetObservables.make<TH1D>("matched Jet Pt", "matched Jet Pt", 100, 0, 300);
 
       }
       
@@ -419,22 +443,25 @@ TriggerAnalyser::beginJob(){
             Filter1_Eta = subDir_Filter1_Observables.make<TH1D>("Eta", "Eta", 100, -5, 5);
             Filter1_Phi = subDir_Filter1_Observables.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
             subDir_Filter1_MatchedJetObservables = subDir_Filter1.mkdir( "matched RECO Jet Observables" );
+            Filter1_matchedJetPt = subDir_Filter1_MatchedJetObservables.make<TH1D>("matched Jet Pt", "matched Jet Pt", 100, 0, 300);
 
             subDir_Filter2 = fileService->mkdir( filter2_.c_str() );
 
-            subDir_Filter2_Observables = subDir_Filter1.mkdir( "Filter Observables" );
+            subDir_Filter2_Observables = subDir_Filter2.mkdir( "Filter Observables" );
             Filter2_Pt = subDir_Filter2_Observables.make<TH1D>("Pt", "Pt", 100, 0, 300);
             Filter2_Eta = subDir_Filter2_Observables.make<TH1D>("Eta", "Eta", 100, -5, 5);
             Filter2_Phi = subDir_Filter2_Observables.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
             subDir_Filter2_MatchedJetObservables = subDir_Filter2.mkdir( "matched RECO Jet Observables" );
+            Filter2_matchedJetPt = subDir_Filter2_MatchedJetObservables.make<TH1D>("matched Jet Pt", "matched Jet Pt", 100, 0, 300);
 
             subDir_Filter3 = fileService->mkdir( filter3_.c_str() );
 
-            subDir_Filter3_Observables = subDir_Filter1.mkdir( "Filter Observables" );
+            subDir_Filter3_Observables = subDir_Filter3.mkdir( "Filter Observables" );
             Filter3_Pt = subDir_Filter3_Observables.make<TH1D>("Pt", "Pt", 100, 0, 300);
             Filter3_Eta = subDir_Filter3_Observables.make<TH1D>("Eta", "Eta", 100, -5, 5);
             Filter3_Phi = subDir_Filter3_Observables.make<TH1D>("Phi", "Phi", 100, -3.5, 3.5);
             subDir_Filter3_MatchedJetObservables = subDir_Filter3.mkdir( "matched RECO Jet Observables" );
+            Filter3_matchedJetPt = subDir_Filter3_MatchedJetObservables.make<TH1D>("matched Jet Pt", "matched Jet Pt", 100, 0, 300);
       }
 }
 

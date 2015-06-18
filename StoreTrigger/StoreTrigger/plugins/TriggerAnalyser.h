@@ -39,8 +39,6 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
       virtual void endJob() override;
 
-// edm::Association< TriggerObjectStandAloneCollection > TriggerObjectStandAloneMatch:
-
       edm::EDGetTokenT<edm::TriggerResults> triggerResults_;
       edm::EDGetTokenT<pat::TriggerObjectStandAloneCollection> triggerObjects_;
       edm::EDGetTokenT<std::vector<reco::GenJet>> genjets_;
@@ -58,20 +56,17 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       const std::string leptonicleg_;
       std::string CombinedTrigger = "";
 
-      // edm::Association< pat::TriggerObjectStandAloneCollection > TriggerObjectMatch
-
       edm::Service<TFileService> fileService;
       TH1D *SingleLeptonHist, *CrossTriggerHist, *CrossTriggerCombinedHist;
       TH1D *Filter1_Pt, *Filter1_Eta, *Filter1_Phi;
       TH1D *Filter2_Pt, *Filter2_Eta, *Filter2_Phi;
       TH1D *Filter3_Pt, *Filter3_Eta, *Filter3_Phi;
       TH1D *CrossTrigger_Pass_JetPtHist, *CrossTrigger_Pass_JetEtaHist, *CrossTrigger_Total_JetPtHist, *CrossTrigger_Total_JetEtaHist, *CrossTrigger_Pass_JetMultiplicity, *CrossTrigger_Total_JetMultiplicity, *CrossTrigger_Pass_hltHT, *CrossTrigger_Total_hltHT;
-      TH1D *CrossTrigger_Pass_METPtHist, *CrossTrigger_Total_METPtHist, *CrossTrigger_Pass_METEnergyHist, *CrossTrigger_Total_METEnergyHist;
+      TH1D *CrossTrigger_Pass_METEnergyHist, *CrossTrigger_Total_METEnergyHist;
       TH1D *CrossTrigger_Pass_LeptonPtHist, *CrossTrigger_Pass_LeptonEnergyHist, *CrossTrigger_Pass_LeptonEtaHist, *CrossTrigger_Total_LeptonPtHist, *CrossTrigger_Total_LeptonEnergyHist, *CrossTrigger_Total_LeptonEtaHist;
-      TH1D *Filter1_matchedJetPt;
+      TH1D *Filter1_matchedJetPt, *Filter2_matchedJetPt, *Filter3_matchedJetPt;
       TFileDirectory subDir_TrigDec, subDir_TrigDiffEff, subDir_TrigDiffEff_Jet, subDir_TrigDiffEff_MET, subDir_TrigDiffEff_Lepton, subDir_Filter1, subDir_Filter2, subDir_Filter3;
       TFileDirectory subDir_Filter1_Observables, subDir_Filter1_MatchedJetObservables, subDir_Filter2_Observables, subDir_Filter2_MatchedJetObservables, subDir_Filter3_Observables, subDir_Filter3_MatchedJetObservables;
-      // double minDR2 = numeric_limits<double>::infinity();
 
       bool isJet, isMatched, SingleLeptonTrigDecision, CrossTriggerTrigDecision, CrossTriggerCombinedTrigDecision = false;
       unsigned int crossIndex, singleleptonIndex = 9999;
