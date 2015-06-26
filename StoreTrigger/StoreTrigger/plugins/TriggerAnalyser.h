@@ -24,6 +24,9 @@
 #include <TH1.h>
 #include <limits>
 #include <TPad.h>
+#include <TGraph.h>
+#include <TGraphAsymmErrors.h>
+
 #include <TCanvas.h>
 
 //
@@ -61,21 +64,37 @@ class TriggerAnalyser : public edm::EDAnalyzer {
 
       edm::Service<TFileService> fileService;
       TH1D *SingleLeptonHist, *CrossTriggerHist, *CrossTriggerCombinedHist;
-      TH1D *Filter1_Pt, *Filter1_Eta, *Filter1_Phi;//, *Filter1_BTag;
+      TH1D *Filter1_Pt, *Filter1_Eta, *Filter1_Phi;
       TH1D *Filter2_Pt, *Filter2_Eta, *Filter2_Phi;
       TH1D *Filter3_Pt, *Filter3_Eta, *Filter3_Phi;
-      TH1D *CrossTrigger_Pass_JetPtHist, *CrossTrigger_Pass_JetEtaHist, *CrossTrigger_Total_JetPtHist, *CrossTrigger_Total_JetEtaHist, *CrossTrigger_Pass_JetMultiplicity, *CrossTrigger_Total_JetMultiplicity, *CrossTrigger_Pass_hltHT, *CrossTrigger_Total_hltHT, *CrossTrigger_Pass_greatestBtag, *CrossTrigger_Total_greatestBtag;
-      TH1D *CrossTrigger_Pass_METEnergyHist, *CrossTrigger_Total_METEnergyHist;
-      TH1D *CrossTrigger_Pass_LeptonPtHist, *CrossTrigger_Pass_LeptonEnergyHist, *CrossTrigger_Pass_LeptonEtaHist, *CrossTrigger_Total_LeptonPtHist, *CrossTrigger_Total_LeptonEnergyHist, *CrossTrigger_Total_LeptonEtaHist;
-      TH1D *SingleTop_Filter1_matchedJetPt, *SingleTop_matchedJetPt, *Filter1_matchedJetPt, *Filter2_matchedJetPt, *Filter2_matchedJetBTag, *Filter3_matchedJetPt;
-      TEfficiency *Filter1_TurnOnCurve_Pt;
-      TFileDirectory subDir_TrigDec, subDir_TrigDiffEff, subDir_TrigDiffEff_Jet, subDir_TrigDiffEff_MET, subDir_TrigDiffEff_Lepton, subDir_Filter1, subDir_Filter2, subDir_Filter3;
-      TFileDirectory subDir_Filter1_Observables, subDir_Filter1_MatchedJetObservables, subDir_Filter1_TurnOnCurves, subDir_Filter2_Observables, subDir_Filter2_MatchedJetObservables, subDir_Filter3_Observables, subDir_Filter3_MatchedJetObservables;
-      bool isJet, isBJet, isMatched, passFilter1, passFilter2, passFilter3, SingleLeptonTrigDecision, CrossTriggerTrigDecision, CrossTriggerCombinedTrigDecision = false;
+
+      TH1D *CrossTrigger_Pass_JetPtHist, *CrossTrigger_Pass_JetEtaHist, *CrossTrigger_Pass_JetMultiplicity, *CrossTrigger_Pass_hltHT, *CrossTrigger_Pass_greatestBtag;
+      TH1D *CrossTrigger_Total_JetPtHist, *CrossTrigger_Total_JetEtaHist, *CrossTrigger_Total_JetMultiplicity,  *CrossTrigger_Total_hltHT, *CrossTrigger_Total_greatestBtag;
+
+      TH1D *CrossTrigger_Pass_METEnergyHist; 
+      TH1D *CrossTrigger_Total_METEnergyHist;
+
+      TH1D *CrossTrigger_Pass_LeptonPtHist, *CrossTrigger_Pass_LeptonEnergyHist, *CrossTrigger_Pass_LeptonEtaHist;
+      TH1D *CrossTrigger_Total_LeptonPtHist, *CrossTrigger_Total_LeptonEnergyHist, *CrossTrigger_Total_LeptonEtaHist;
+
+      TH1D *Total_matchedJetPt, *Filter1_matchedJetPt, *Filter2_matchedJetPt, *Filter3_matchedJetPt;
+      TH1D *Total_matchedJetBTag, *Filter2_matchedJetBTag;
+      
+      TGraphAsymmErrors *Filter1_TurnOnCurve_Pt, *Filter2_TurnOnCurve_Pt, *Filter3_TurnOnCurve_Pt;
+      TGraphAsymmErrors *Filter2_TurnOnCurve_BTag;
+
+      TFileDirectory subDir_TrigDec;
+      TFileDirectory subDir_Observables, subDir_Observables_Jet, subDir_Observables_MET, subDir_Observables_Lepton;
+
+      TFileDirectory subDir_Filter1, subDir_Filter2, subDir_Filter3;
+      TFileDirectory subDir_Filter1_Observables, subDir_Filter2_Observables, subDir_Filter3_Observables;
+      TFileDirectory subDir_Filter1_MatchedJetObservables, subDir_Filter2_MatchedJetObservables, subDir_Filter3_MatchedJetObservables;
+      TFileDirectory subDir_Filter1_TurnOnCurves, subDir_Filter2_TurnOnCurves, subDir_Filter3_TurnOnCurves;
+
+      bool isJet, isMatched, SingleLeptonTrigDecision, CrossTriggerTrigDecision, CrossTriggerCombinedTrigDecision = false;
       unsigned int crossIndex, singleleptonIndex = 9999;
       float jetCSV, hltHT = 0;
       float metPt, metEnergy = 0;
-      float blarg;
       float leptonPt, leptonEta, leptonEnergy = 0;
       int jetMultiplicity, matchedJetIndex = 0;
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
