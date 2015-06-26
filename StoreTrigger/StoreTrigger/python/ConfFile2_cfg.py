@@ -27,7 +27,6 @@ process.source = cms.Source("PoolSource",
 process.Template = cms.EDAnalyzer('TriggerAnalyser',
     HLTriggerResults = cms.InputTag('TriggerResults','','HLT'),
     HLTriggerObjects = cms.InputTag('selectedPatTrigger','','PAT'),
-    genjets = cms.InputTag('slimmedGenJets','','PAT'),
     jets = cms.InputTag('slimmedJets','','PAT'),
     mets = cms.InputTag('slimmedMETs','','PAT'),
     electrons = cms.InputTag('slimmedElectrons','','PAT'),
@@ -71,4 +70,4 @@ process.p = cms.Path(
 
 # OutFile
 process.TFileService = cms.Service('TFileService',
-    fileName = cms.string('TestTrigger.root'))
+    fileName = cms.string('TestTrdscigger.root'))
