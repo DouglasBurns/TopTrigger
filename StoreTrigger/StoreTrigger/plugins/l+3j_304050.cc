@@ -24,11 +24,13 @@
 
 // user include files
 #include "l+3j_304050.h"
+#include "JetDifferentialEfficiencies.h"
 
 
 TTBarJet304050::TTBarJet304050(const edm::ParameterSet& iConfig) :
     hltInputTag_(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("HLTInputTag"))),
     triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("HLTriggerObjects"))),
+    jets_(consumes<std::vector<pat::Jet>>(iConfig.getParameter<edm::InputTag>("jets"))),
     singleleptontrigger_(iConfig.getParameter <std::string> ("SingleLeptonTriggerInput")),
     ttbarjet304050trigger_(iConfig.getParameter <std::string> ("TTBarJet304050TriggerInput")),
     asymmetricjet30filter_(iConfig.getParameter <std::string> ("AsymmetricJet30FilterInput")),
@@ -55,11 +57,15 @@ TTBarJet304050::~TTBarJet304050(){
 void
 TTBarJet304050::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
+  CombinedTrigger.append(singleleptontrigger_.c_str());
+  CombinedTrigger.append(" and ");
+  CombinedTrigger.append(ttbarjet304050trigger_.c_str());
+
   using namespace edm;
 
   // std::cout << "In analyze" << std::endl;
   edm::Handle < edm::TriggerResults > triggerResults;
-  edm::Handle<pat::TriggerObjectStandAloneCollection> triggerObjects;
+  edm::Handle < pat::TriggerObjectStandAloneCollection > triggerObjects;
 
   iEvent.getByToken(hltInputTag_, triggerResults);
   iEvent.getByToken(triggerObjects_, triggerObjects);
@@ -79,6 +85,18 @@ TTBarJet304050::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   if ( singleleptonIndex < triggerResults->size() ) {
     SingleLeptonTrigDecision = triggerResults->accept(singleleptonIndex);
     SingleLeptonHist->Fill(SingleLeptonTrigDecision);
+
+    if (SingleLeptonTrigDecision == true){
+
+      if ( ttbarjet304050Index < triggerResults->size() ) {
+        TTBarJet304050CombinedTrigDecision = triggerResults->accept(ttbarjet304050Index);
+        TTBarJet304050CombinedHist->Fill(TTBarJet304050CombinedTrigDecision);
+      }
+
+      else {
+        std::cout << "Looking for : " << ttbarjet304050trigger_ << " but failed" << std::endl;
+      }
+    }
   }
   else {
     std::cout << "Looking for : " << singleleptontrigger_ << " but failed" << std::endl;
@@ -94,6 +112,14 @@ TTBarJet304050::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   else {
     std::cout << "Looking for : " << ttbarjet304050trigger_ << " but failed" << std::endl;
   }
+
+  std::vector<float> JetPt = StoreJetPt(iEvent,jets_);
+  for (unsigned int i = 0, n = JetPt.size(); i < n; ++i){
+    std::cout << JetPt[i] << std::endl;
+  }
+
+
+
 
 
   for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
@@ -126,6 +152,7 @@ TTBarJet304050::beginJob(){
   subDir_TrigDec = fileService->mkdir( "Trigger Decision" );
   TTBarJet304050Hist = subDir_TrigDec.make<TH1D>("TTBarJet304050 Trigger Decision", ttbarjet304050trigger_.c_str(), 2, -0.5, 1.5);
   SingleLeptonHist = subDir_TrigDec.make<TH1D>("Single Lepton Trigger Decision", singleleptontrigger_.c_str(), 2, -0.5, 1.5);
+  TTBarJet304050CombinedHist = subDir_TrigDec.make<TH1D>("Added TTBarJet304050 Trigger Decision", CombinedTrigger.c_str(), 2, -0.5, 1.5);
 
   subDir_AsymmetricJet30Filter = fileService->mkdir( "Asymmetric30JetFilter" );
   TTBarJet30Hist_Pt = subDir_AsymmetricJet30Filter.make<TH1D>("Pt", "Pt", 100, 0, 300);

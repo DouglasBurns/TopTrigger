@@ -1,0 +1,48 @@
+[?1034h***********************************************************************
+Efficiency of Ele27_SingleTop, Single Lepton : 0.1076
+Efficiency of Ele27_SingleTop, Hadronic : 0.0842
+Efficiency of Ele27_SingleTop, Hadronic | Single Lepton : 0.782527881041
+***********************************************************************
+Efficiency of Ele32_SingleTop, Single Lepton : 0.0951
+Efficiency of Ele32_SingleTop, Hadronic : 0.0734
+Efficiency of Ele32_SingleTop, Hadronic | Single Lepton : 0.77181913775
+***********************************************************************
+Efficiency of Mu20_SingleTop, Single Lepton : 0.1415
+Efficiency of Mu20_SingleTop, Hadronic : 0.1085
+Efficiency of Mu20_SingleTop, Hadronic | Single Lepton : 0.766077738516
+***********************************************************************
+Efficiency of Mu24_SingleTop, Single Lepton : 0.1328
+Efficiency of Mu24_SingleTop, Hadronic : 0.1018
+Efficiency of Mu24_SingleTop, Hadronic | Single Lepton : 0.76656626506
+***********************************************************************
+Efficiency of Ele27_TTBarJet30, Single Lepton : 0.1076
+Efficiency of Ele27_TTBarJet30, Hadronic : 0.0808
+Efficiency of Ele27_TTBarJet30, Hadronic | Single Lepton : 0.75092936803
+***********************************************************************
+Efficiency of Ele32_TTBarJet30, Single Lepton : 0.0951
+Efficiency of Ele32_TTBarJet30, Hadronic : 0.071
+Efficiency of Ele32_TTBarJet30, Hadronic | Single Lepton : 0.74658254469
+***********************************************************************
+Efficiency of Mu20_TTBarJet30, Single Lepton : 0.1415
+Efficiency of Mu20_TTBarJet30, Hadronic : 0.1018
+Efficiency of Mu20_TTBarJet30, Hadronic | Single Lepton : 0.719434628975
+***********************************************************************
+Efficiency of Mu24_TTBarJet30, Single Lepton : 0.1328
+Efficiency of Mu24_TTBarJet30, Hadronic : 0.1018
+Efficiency of Mu24_TTBarJet30, Hadronic | Single Lepton : 0.76656626506
+***********************************************************************
+Efficiency of Ele27_TTBarJet304050, Single Lepton : 0.1076
+Efficiency of Ele27_TTBarJet304050, Hadronic : 0.0767
+Efficiency of Ele27_TTBarJet304050, Hadronic | Single Lepton : 0.71282527881
+***********************************************************************
+Efficiency of Ele32_TTBarJet304050, Single Lepton : 0.0951
+Efficiency of Ele32_TTBarJet304050, Hadronic : 0.0672
+Efficiency of Ele32_TTBarJet304050, Hadronic | Single Lepton : 0.706624605678
+***********************************************************************
+Efficiency of Mu20_TTBarJet304050, Single Lepton : 0.1415
+Efficiency of Mu20_TTBarJet304050, Hadronic : 0.1018
+Efficiency of Mu20_TTBarJet304050, Hadronic | Single Lepton : 0.719434628975
+***********************************************************************
+Efficiency of Mu24_TTBarJet304050, Single Lepton : 0.1328
+Efficiency of Mu24_TTBarJet304050, Hadronic : 0.1018
+Efficiency of Mu24_TTBarJet304050, Hadronic | Single Lepton : 0.76656626506
