@@ -33,6 +33,7 @@ TriggerAnalyser::TriggerAnalyser(const edm::ParameterSet& iConfig) :
     mets_(consumes<std::vector<pat::MET>>(iConfig.getParameter<edm::InputTag>("mets"))),
     electrons_(consumes<std::vector<pat::Electron>>(iConfig.getParameter<edm::InputTag>("electrons"))),
     muons_(consumes<std::vector<pat::Muon>>(iConfig.getParameter<edm::InputTag>("muons"))),
+    vertices_(consumes<std::vector<reco::Vertex>>(iConfig.getParameter<edm::InputTag>("vertices"))),
     singleleptontrigger_(iConfig.getParameter <std::string> ("SingleLeptonTriggerInput")),
     crosstrigger_(iConfig.getParameter <std::string> ("CrossTriggerInput")),
     filter1_(iConfig.getParameter <std::string> ("FilterInput1")),
@@ -62,12 +63,6 @@ TriggerAnalyser::~TriggerAnalyser(){
 void
 TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
-      CombinedTrigger.append(singleleptontrigger_.c_str());
-      CombinedTrigger.append(" and ");
-      CombinedTrigger.append(crosstrigger_.c_str());
-
-      // std::cout << "Lepton Leg : " << leptonicleg_ << std::endl;
-
       using namespace edm;
 
       // std::cout << "In analyze" << std::endl;
@@ -77,6 +72,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       edm::Handle < std::vector<pat::MET> > mets;
       edm::Handle < std::vector<pat::Electron> > electrons;
       edm::Handle < std::vector<pat::Muon> > muons;
+      edm::Handle < std::vector<reco::Vertex> > vertices;
 
       iEvent.getByToken(triggerResults_, triggerResults);
       iEvent.getByToken(triggerObjects_, triggerObjects);
@@ -84,6 +80,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       iEvent.getByToken(mets_, mets);
       iEvent.getByToken(electrons_, electrons);
       iEvent.getByToken(muons_, muons);
+      iEvent.getByToken(vertices_, vertices);
 
       const edm::TriggerNames &TrigNames = iEvent.triggerNames(*triggerResults); 
 
@@ -107,13 +104,13 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       // Find trigger result for single lepton trigger and store in histogram
       if ( singleleptonIndex < triggerResults->size() ) {
             SingleLeptonTrigDecision = triggerResults->accept(singleleptonIndex);
-            SingleLeptonHist->Fill(SingleLeptonTrigDecision);
+            histContainer_["SingleLeptonHist"]->Fill(SingleLeptonTrigDecision);
 
             if (SingleLeptonTrigDecision == true){
                   // If passes single lepton trigger find and store trigger results for the cross trigger in histogram
                   if ( crossIndex < triggerResults->size() ) {
                         CrossTriggerCombinedTrigDecision = triggerResults->accept(crossIndex);
-                        CrossTriggerCombinedHist->Fill(CrossTriggerCombinedTrigDecision);
+                        histContainer_["CrossTriggerCombinedHist"]->Fill(CrossTriggerCombinedTrigDecision);
                   }
 
                   else {
@@ -128,18 +125,34 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       // Find trigger result for cross trigger and store in histogram
       if ( crossIndex < triggerResults->size() ) {
             CrossTriggerTrigDecision = triggerResults->accept(crossIndex);
-            CrossTriggerHist->Fill(CrossTriggerTrigDecision);
+            histContainer_["CrossTriggerHist"]->Fill(CrossTriggerTrigDecision);
       }
       else {
             std::cout << "Looking for : " << crosstrigger_ << " but failed" << std::endl;
       }
 
 
+      // VERTICES ----------------------------------------------------------------------------------- //
+
+      vertexMultiplicity = 0;
+      for( auto vertex = vertices->begin(); vertex != vertices->end(); ++vertex ){ 
+            if (!vertex->isValid()) continue;
+            vertexMultiplicity += 1;
+      }
+
+      if (CrossTriggerTrigDecision==true){
+            histContainer_["CrossTrigger_Pass_VertexMultiplicityHist"]->Fill(vertexMultiplicity);
+      }
+
+      histContainer_["CrossTrigger_Total_VertexMultiplicityHist"]->Fill(vertexMultiplicity);
+      
+
       // JETS --------------------------------------------------------------------------------------- //
 
       jetMultiplicity = 0;
       hltHT = 0;
       jetCSV = 0;
+      forwardjeteta = 0;
 
       // Select jets and store distributions
       for( auto jet = jets->begin(); jet != jets->end(); ++jet ){ 
@@ -150,27 +163,35 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             ++jetMultiplicity;
             hltHT += jet->pt();
 
+            // Most forward jet
+            if (std::abs(jet->eta()) >= forwardjeteta) forwardjeteta = std::abs(jet->eta());
+
             // Greatest CSV value
             if (jet->bDiscriminator(btagger_) >= jetCSV) jetCSV = jet->bDiscriminator(btagger_);
 
             // Store Jet Pt, Eta, Higest CSV, HT and Multiplicity in histograms 
             if (CrossTriggerTrigDecision==true){
-                  CrossTrigger_Pass_JetPtHist->Fill(jet->pt());
-                  CrossTrigger_Pass_JetEtaHist->Fill(jet->eta());
+                  histContainer_["CrossTrigger_Pass_JetPtHist"]->Fill(jet->pt());
+                  histContainer_["CrossTrigger_Pass_JetEtaHist"]->Fill(jet->eta());
+                  histContainer_["CrossTrigger_Pass_JetCSVHist"]->Fill(jet->bDiscriminator(btagger_));
             }
-            CrossTrigger_Total_JetPtHist->Fill(jet->pt());
-            CrossTrigger_Total_JetEtaHist->Fill(jet->eta());
+            histContainer_["CrossTrigger_Total_JetPtHist"]->Fill(jet->pt());
+            histContainer_["CrossTrigger_Total_JetEtaHist"]->Fill(jet->eta());
+            histContainer_["CrossTrigger_Total_JetCSVHist"]->Fill(jet->bDiscriminator(btagger_));
+
       }
 
       if(CrossTriggerTrigDecision==true){
-            CrossTrigger_Pass_JetMultiplicity->Fill(jetMultiplicity);
-            CrossTrigger_Pass_hltHT->Fill(hltHT);
-            CrossTrigger_Pass_greatestBtag->Fill(-log(1-jetCSV));
+            histContainer_["CrossTrigger_Pass_JetMultiplicity"]->Fill(jetMultiplicity);
+            histContainer_["CrossTrigger_Pass_hltHT"]->Fill(hltHT);
+            histContainer_["CrossTrigger_Pass_greatestBtag"]->Fill(-log(1-jetCSV));
+            histContainer_["CrossTrigger_Pass_forwardJetEta"]->Fill(forwardjeteta);
       }
 
-      CrossTrigger_Total_JetMultiplicity->Fill(jetMultiplicity);
-      CrossTrigger_Total_hltHT->Fill(hltHT);
-      CrossTrigger_Total_greatestBtag->Fill(-log(1-jetCSV));
+      histContainer_["CrossTrigger_Total_JetMultiplicity"]->Fill(jetMultiplicity);
+      histContainer_["CrossTrigger_Total_hltHT"]->Fill(hltHT);
+      histContainer_["CrossTrigger_Total_greatestBtag"]->Fill(-log(1-jetCSV));
+      histContainer_["CrossTrigger_Total_forwardJetEta"]->Fill(forwardjeteta);
 
 
       // MET ---------------------------------------------------------------------------------------- //
@@ -181,9 +202,9 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             metEnergy = met->energy();//met pt = met energy
 
             if(CrossTriggerTrigDecision==true){
-                  CrossTrigger_Pass_METEnergyHist->Fill(metEnergy);
+                  histContainer_["CrossTrigger_Pass_METHist"]->Fill(metEnergy);
             }
-            CrossTrigger_Total_METEnergyHist->Fill(metEnergy);
+      histContainer_["CrossTrigger_Total_METHist"]->Fill(metEnergy);
       }
 
 
@@ -201,13 +222,13 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                   leptonEnergy = lepton.energy();
 
                   if(CrossTriggerTrigDecision==true){
-                        CrossTrigger_Pass_LeptonPtHist->Fill(leptonPt);
-                        CrossTrigger_Pass_LeptonEtaHist->Fill(leptonEta);
-                        CrossTrigger_Pass_LeptonEnergyHist->Fill(leptonEnergy);
+                        histContainer_["CrossTrigger_Pass_LeptonPtHist"]->Fill(leptonPt);
+                        histContainer_["CrossTrigger_Pass_LeptonEtaHist"]->Fill(leptonEta);
+                        histContainer_["CrossTrigger_Pass_LeptonEnergyHist"]->Fill(leptonEnergy);
                   }
-                  CrossTrigger_Total_LeptonPtHist->Fill(leptonPt);
-                  CrossTrigger_Total_LeptonEtaHist->Fill(leptonEta);
-                  CrossTrigger_Total_LeptonEnergyHist->Fill(leptonEnergy);
+                  histContainer_["CrossTrigger_Total_LeptonPtHist"]->Fill(leptonPt);
+                  histContainer_["CrossTrigger_Total_LeptonEtaHist"]->Fill(leptonEta);
+                  histContainer_["CrossTrigger_Total_LeptonEnergyHist"]->Fill(leptonEnergy);
             }
       }
       else if ( leptonicleg_ == "Mu" ){
@@ -219,28 +240,44 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                   leptonEnergy = lepton.energy();
 
                   if(CrossTriggerTrigDecision==true){
-                        CrossTrigger_Pass_LeptonPtHist->Fill(leptonPt);
-                        CrossTrigger_Pass_LeptonEtaHist->Fill(leptonEta);
-                        CrossTrigger_Pass_LeptonEnergyHist->Fill(leptonEnergy);
+                        histContainer_["CrossTrigger_Pass_LeptonPtHist"]->Fill(leptonPt);
+                        histContainer_["CrossTrigger_Pass_LeptonEtaHist"]->Fill(leptonEta);
+                        histContainer_["CrossTrigger_Pass_LeptonEnergyHist"]->Fill(leptonEnergy);
                   }
-                  CrossTrigger_Total_LeptonPtHist->Fill(leptonPt);
-                  CrossTrigger_Total_LeptonEtaHist->Fill(leptonEta);
-                  CrossTrigger_Total_LeptonEnergyHist->Fill(leptonEnergy);
+                  histContainer_["CrossTrigger_Total_LeptonPtHist"]->Fill(leptonPt);
+                  histContainer_["CrossTrigger_Total_LeptonEtaHist"]->Fill(leptonEta);
+                  histContainer_["CrossTrigger_Total_LeptonEnergyHist"]->Fill(leptonEnergy);
             }
       }
 
 
       // FILTERS: TRIGGER OBJECTS ------------------------------------------------------------------- //
+      // std::cout << "++++++++++++++++++" << std::endl;
 
-      // Get all filter objects in an event
+      // Get all filter objects in an event - MOVE JETS FIRST?
       for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
 
+            // pat::TriggerObject OBJ = obj.triggerObject();//same as above
+
+            // hltAK4PFJetsCorrected::HLT
             // remove non-jet trigger objects (85=Jet, 86=BJet)
             isJet = false; 
             for (unsigned h = 0; h < obj.filterIds().size(); ++h){
                   if (obj.filterIds()[h] == 85 || obj.filterIds()[h] == 86 ) isJet = true;
             }
             if (!isJet) continue;
+            if ( (obj.collection() != "hltAK4PFJetsCorrected::HLT") && (obj.collection() != "hltPFJetForBtag::HLT" ) ) continue;
+
+
+
+            // std::cout << "Jet Pt : " << obj.pt() << std::endl;
+            // std::cout << "Collection = " << obj.collection() << std::endl;
+            // for (unsigned h = 0; h < obj.filterLabels().size(); ++h){
+            //       std::cout << "FliterLabel : " << obj.filterLabels()[h] << std::endl;
+            // }            
+            // std::cout << std::endl;
+
+
 
             // match trigger jet object to RECO jet and continue if no matching is found
             double minDR2 = 9999;
@@ -250,6 +287,9 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             for( auto jet = jets->begin(); jet != jets->end(); ++jet ){
    
                   double const dR2 = reco::deltaR2(obj, *jet);
+
+                  // histContainer_["RecoJet_Pt"]->Fill(jet.pt());
+
 
                   // Find index of best matched jet
                   if (dR2 < minDR2){
@@ -262,64 +302,74 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             if (minDR2 < 0.3 * 0.3) isMatched = true;
             if (!isMatched) continue;
 
+
+
             // See if trigger jet object passes filter and store filter distributions in histograms
             // Store matched RECO jet pt / btag
-           for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
+            for (unsigned int i = 0, n = obj.filterLabels().size(); i < n; ++i) {
+
+
 
                   if ( hadronicleg_ == "SingleTop" ){
+                              distContainer_["TriggerObject_Reco_Pt"]->Fill(obj.pt(),jets->at(matchedJetIndex).pt());
+
                         if ( obj.filterLabels()[i].find(filter1_) != std::string::npos ) {
 
-                              Filter1_Pt->Fill(obj.pt());
-                              Filter1_Eta->Fill(obj.eta());
-                              Filter1_Phi->Fill(obj.phi());
-                              Filter1_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());
+                              histContainer_["Filter1_Pt"]->Fill(obj.pt());
+                              histContainer_["Filter1_Eta"]->Fill(obj.eta());
+                              histContainer_["Filter1_Phi"]->Fill(obj.phi());
+                              histContainer_["Filter1_matchedJetPt"]->Fill(jets->at(matchedJetIndex).pt());
+                              distContainer_["Filter1_TriggerObject_Reco_Pt"]->Fill(obj.pt(),jets->at(matchedJetIndex).pt());
+
                         }               
 
                         if ( obj.filterLabels()[i].find(filter2_) != std::string::npos ) {
-                              Filter2_Pt->Fill(obj.pt());
-                              Filter2_Eta->Fill(obj.eta());
-                              Filter2_Phi->Fill(obj.phi());
-                              Filter2_matchedJetBTag->Fill(-log(1-jets->at(matchedJetIndex).bDiscriminator(btagger_)));
+                              histContainer_["Filter2_Pt"]->Fill(obj.pt());
+                              histContainer_["Filter2_Eta"]->Fill(obj.eta());
+                              histContainer_["Filter2_Phi"]->Fill(obj.phi());
+                              histContainer_["Filter2_matchedJetBTag"]->Fill(-log(1-jets->at(matchedJetIndex).bDiscriminator(btagger_)));
                         }
 
-                        Total_matchedJetPt->Fill(jets->at(matchedJetIndex).pt()); 
-                        Total_matchedJetBTag->Fill(-log(1-jets->at(matchedJetIndex).bDiscriminator(btagger_)));               
+                  if (obj.collection() == "hltAK4PFJetsCorrected::HLT") histContainer_["Total_matchedJetPt"]->Fill(jets->at(matchedJetIndex).pt()); //NOT CONVINCED
+                  if (obj.collection() == "hltPFJetForBtag::HLT") histContainer_["Total_matchedJetBTag"]->Fill(-log(1-jets->at(matchedJetIndex).bDiscriminator(btagger_)));               
                   }
 
 
                   if ( hadronicleg_ == "TTBarJet30" ){
                         if ( obj.filterLabels()[i].find(filter1_) != std::string::npos ) {
-                              Filter1_Pt->Fill(obj.pt());
-                              Filter1_Eta->Fill(obj.eta());
-                              Filter1_Phi->Fill(obj.phi());
-                              Filter1_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());
+                              histContainer_["Filter1_Pt"]->Fill(obj.pt());
+                              histContainer_["Filter1_Eta"]->Fill(obj.eta());
+                              histContainer_["Filter1_Phi"]->Fill(obj.phi());
+                              
+                              histContainer_["Filter1_matchedJetPt"]->Fill(jets->at(matchedJetIndex).pt());
                         }
-                        Total_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());                 
+                        
+                        histContainer_["Total_matchedJetPt"]->Fill(jets->at(matchedJetIndex).pt());                 
                   }
 
 
                   if ( hadronicleg_ == "TTBarJet304050" ){
                         if ( obj.filterLabels()[i].find(filter1_) != std::string::npos ) {
-                              Filter1_Pt->Fill(obj.pt());
-                              Filter1_Eta->Fill(obj.eta());
-                              Filter1_Phi->Fill(obj.phi());
-                              Filter1_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());
+                              histContainer_["Filter1_Pt"]->Fill(obj.pt());
+                              histContainer_["Filter1_Eta"]->Fill(obj.eta());
+                              histContainer_["Filter1_Phi"]->Fill(obj.phi());
+                              if (isMatched) histContainer_["Filter1_matchedJetPt"]->Fill(jets->at(matchedJetIndex).pt());
                         }
                   
                         if ( obj.filterLabels()[i].find(filter2_) != std::string::npos ) {
-                              Filter2_Pt->Fill(obj.pt());
-                              Filter2_Eta->Fill(obj.eta());
-                              Filter2_Phi->Fill(obj.phi());
-                              Filter2_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());
+                              histContainer_["Filter2_Pt"]->Fill(obj.pt());
+                              histContainer_["Filter2_Eta"]->Fill(obj.eta());
+                              histContainer_["Filter2_Phi"]->Fill(obj.phi());
+                              if (isMatched) histContainer_["Filter2_matchedJetPt"]->Fill(jets->at(matchedJetIndex).pt());
                         }
                      
                         if ( obj.filterLabels()[i].find(filter3_) != std::string::npos ) {
-                              Filter3_Pt->Fill(obj.pt());
-                              Filter3_Eta->Fill(obj.eta());
-                              Filter3_Phi->Fill(obj.phi());
-                              Filter3_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());
+                              histContainer_["Filter3_Pt"]->Fill(obj.pt());
+                              histContainer_["Filter3_Eta"]->Fill(obj.eta());
+                              histContainer_["Filter3_Phi"]->Fill(obj.phi());
+                              if (isMatched) histContainer_["Filter3_matchedJetPt"]->Fill(jets->at(matchedJetIndex).pt());
                         }
-                        Total_matchedJetPt->Fill(jets->at(matchedJetIndex).pt());                                         
+                        if (isMatched) histContainer_["Total_matchedJetPt"]->Fill(jets->at(matchedJetIndex).pt());                                         
                   }
             }
       }
@@ -333,63 +383,75 @@ TriggerAnalyser::beginJob(){
       // INITIALISE DIRECTORIES AND HISTOGRAMS ------------------------------------------------------ //
 
       subDir_TrigDec = fileService->mkdir( "Trigger Decision" );
-      CrossTriggerHist = subDir_TrigDec.make<TH1D>("CrossTrigger Trigger Decision", crosstrigger_.c_str(), 2, -0.5, 1.5);
-      SingleLeptonHist = subDir_TrigDec.make<TH1D>("Single Lepton Trigger Decision", singleleptontrigger_.c_str(), 2, -0.5, 1.5);
-      CrossTriggerCombinedHist = subDir_TrigDec.make<TH1D>("Added CrossTrigger Trigger Decision", CombinedTrigger.c_str(), 2, -0.5, 1.5);
+      histContainer_["CrossTriggerHist"] = subDir_TrigDec.make<TH1F>("CrossTrigger Trigger Decision", crosstrigger_.c_str(), 2, -0.5, 1.5);
+      histContainer_["SingleLeptonHist"] = subDir_TrigDec.make<TH1F>("Single Lepton Trigger Decision", singleleptontrigger_.c_str(), 2, -0.5, 1.5);
+      histContainer_["CrossTriggerCombinedHist"] = subDir_TrigDec.make<TH1F>("Added CrossTrigger Trigger Decision", (crosstrigger_ + " and " + singleleptontrigger_).c_str(), 2, -0.5, 1.5);
+
+      subDir_TrigDec_TurnOnCurves = subDir_TrigDec.mkdir( "Trigger Turn On Curves" );
 
       subDir_Observables = fileService->mkdir( "Trigger Observables" );
-
       subDir_Observables_Jet = subDir_Observables.mkdir( "Jets" );
-      CrossTrigger_Pass_JetPtHist = subDir_Observables_Jet.make<TH1D>("CrossTrigger_Pass_JetPt", "Pass_Pt", 100, 0, 200);
-      CrossTrigger_Total_JetPtHist = subDir_Observables_Jet.make<TH1D>("CrossTrigger_Total_JetPt", "Total_Pt", 100, 0, 200);
-      CrossTrigger_Pass_JetEtaHist = subDir_Observables_Jet.make<TH1D>("CrossTrigger_Pass_JetEta", "Eta", 100, -3, 3);
-      CrossTrigger_Total_JetEtaHist = subDir_Observables_Jet.make<TH1D>("CrossTrigger_Total_JetEta", "Total_Eta", 100, -3, 3);
-      CrossTrigger_Pass_JetMultiplicity = subDir_Observables_Jet.make<TH1D>("CrossTrigger_Pass_JetMultiplicity", "Pass_JetMultiplicity", 15, 0, 15);
-      CrossTrigger_Total_JetMultiplicity = subDir_Observables_Jet.make<TH1D>("CrossTrigger_Total_JetMultiplicity", "Total_JetMultiplicity", 15, 0, 15);
-      CrossTrigger_Pass_hltHT = subDir_Observables_Jet.make<TH1D>("CrossTrigger_Pass_hltHT", "Pass_hltHT", 200, 0, 500);
-      CrossTrigger_Total_hltHT = subDir_Observables_Jet.make<TH1D>("CrossTrigger_Total_hltHT", "Total_hltHT", 200, 0, 500);
-      CrossTrigger_Pass_greatestBtag = subDir_Observables_Jet.make<TH1D>("CrossTrigger_Pass_GreatestBtag", "Pass_GreatestBtag", 100, 0, 20);
-      CrossTrigger_Total_greatestBtag = subDir_Observables_Jet.make<TH1D>("CrossTrigger_Total_GreatestBtag", "Total_GreatestBtag", 100, 0, 20);
+      histContainer_["CrossTrigger_Pass_JetPtHist"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetPt", "Pass_Pt", 50, 0, 120);
+      histContainer_["CrossTrigger_Total_JetPtHist"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetPt", "Total_Pt", 50, 0, 120);
+      histContainer_["CrossTrigger_Pass_JetEtaHist"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetEta", "Pass_Eta", 100, -3, 3);
+      histContainer_["CrossTrigger_Total_JetEtaHist"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetEta", "Total_Eta", 100, -3, 3);
+      histContainer_["CrossTrigger_Pass_JetCSVHist"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetCSV", "Pass_JetCSV", 10, 0, 1);
+      histContainer_["CrossTrigger_Total_JetCSVHist"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetCSV", "Total_JetCSV", 10, 0, 1);       
+      histContainer_["CrossTrigger_Pass_JetMultiplicity"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetMultiplicity", "Pass_JetMultiplicity", 10, 0, 10);
+      histContainer_["CrossTrigger_Total_JetMultiplicity"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetMultiplicity", "Total_JetMultiplicity", 10, 0, 10);
+      histContainer_["CrossTrigger_Pass_hltHT"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_hltHT", "Pass_hltHT", 100, 0, 700);
+      histContainer_["CrossTrigger_Total_hltHT"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_hltHT", "Total_hltHT", 100, 0, 700);
+      histContainer_["CrossTrigger_Pass_greatestBtag"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_GreatestBtag", "Pass_GreatestBtag", 100, 0, 8);
+      histContainer_["CrossTrigger_Total_greatestBtag"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_GreatestBtag", "Total_GreatestBtag", 100, 0, 8);     
+      histContainer_["CrossTrigger_Pass_forwardJetEta"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_forwardJetEta", "Pass_ForwardJetEta", 100, -3, 3);
+      histContainer_["CrossTrigger_Total_forwardJetEta"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_forwardJetEta", "Total_ForwardJetEta", 100, -3, 3);
+
+      subDir_Observables_Vertices = subDir_Observables.mkdir( "Vertices" );
+      histContainer_["CrossTrigger_Pass_VertexMultiplicityHist"] = subDir_Observables_Vertices.make<TH1F>("CrossTrigger_Pass_VertexMultiplicityHist", "Pass_Vertex", 25, 0, 25);
+      histContainer_["CrossTrigger_Total_VertexMultiplicityHist"] = subDir_Observables_Vertices.make<TH1F>("CrossTrigger_Total_VertexMultiplicityHist", "Total_Vertex", 25, 0, 25);
 
       subDir_Observables_MET = subDir_Observables.mkdir( "MET" );
-      CrossTrigger_Pass_METEnergyHist = subDir_Observables_MET.make<TH1D>("CrossTrigger_Pass_METEnergy", "Pass_Energy", 100, 0, 300);
-      CrossTrigger_Total_METEnergyHist = subDir_Observables_MET.make<TH1D>("CrossTrigger_Total_METEnergy", "Total_Energy", 100, 0, 300);
+      histContainer_["CrossTrigger_Pass_METHist"] = subDir_Observables_MET.make<TH1F>("CrossTrigger_Pass_MET", "Pass_Energy", 100, 0, 200);
+      histContainer_["CrossTrigger_Total_METHist"] = subDir_Observables_MET.make<TH1F>("CrossTrigger_Total_MET", "Total_Energy", 100, 0, 200);
 
       subDir_Observables_Lepton = subDir_Observables.mkdir( "Leading_Lepton" );
-      CrossTrigger_Pass_LeptonPtHist = subDir_Observables_Lepton.make<TH1D>("CrossTrigger_Pass_LeptonPt", "Pass_Pt", 100, 0, 200);
-      CrossTrigger_Total_LeptonPtHist = subDir_Observables_Lepton.make<TH1D>("CrossTrigger_Total_LeptonPt", "Total_Pt", 100, 0, 200);
-      CrossTrigger_Pass_LeptonEtaHist = subDir_Observables_Lepton.make<TH1D>("CrossTrigger_Pass_LeptonEta", "Pass_Eta", 100, -3, 3);
-      CrossTrigger_Total_LeptonEtaHist = subDir_Observables_Lepton.make<TH1D>("CrossTrigger_Total_LeptonEta", "Total_Eta", 100, -3, 3);
-      CrossTrigger_Pass_LeptonEnergyHist = subDir_Observables_Lepton.make<TH1D>("CrossTrigger_Pass_LeptonEnergy", "Pass_Energy", 100, 0, 200);
-      CrossTrigger_Total_LeptonEnergyHist = subDir_Observables_Lepton.make<TH1D>("CrossTrigger_Total_LeptonEnergy", "Total_Energy", 100, 0, 200);
+      histContainer_["CrossTrigger_Pass_LeptonPtHist"] = subDir_Observables_Lepton.make<TH1F>("CrossTrigger_Pass_LeptonPt", "Pass_Pt", 50, 0, 120);
+      histContainer_["CrossTrigger_Total_LeptonPtHist"] = subDir_Observables_Lepton.make<TH1F>("CrossTrigger_Total_LeptonPt", "Total_Pt", 50, 0, 120);
+      histContainer_["CrossTrigger_Pass_LeptonEtaHist"] = subDir_Observables_Lepton.make<TH1F>("CrossTrigger_Pass_LeptonEta", "Pass_Eta", 100, -3, 3);
+      histContainer_["CrossTrigger_Total_LeptonEtaHist"] = subDir_Observables_Lepton.make<TH1F>("CrossTrigger_Total_LeptonEta", "Total_Eta", 100, -3, 3);
+      histContainer_["CrossTrigger_Pass_LeptonEnergyHist"] = subDir_Observables_Lepton.make<TH1F>("CrossTrigger_Pass_LeptonEnergy", "Pass_Energy", 100, 0, 200);
+      histContainer_["CrossTrigger_Total_LeptonEnergyHist"] = subDir_Observables_Lepton.make<TH1F>("CrossTrigger_Total_LeptonEnergy", "Total_Energy", 100, 0, 200);
 
      if ( hadronicleg_ == "SingleTop" ){
 
             // Single Lepton Filter
             subDir_Filter1 = fileService->mkdir( filter1_.c_str() );
 
-            subDir_Filter1_Observables = subDir_Filter1.mkdir( "Filter Observables" );
-            Filter1_Pt = subDir_Filter1_Observables.make<TH1D>("Pt", "Pt", 50, 0, 200);
-            Filter1_Eta = subDir_Filter1_Observables.make<TH1D>("Eta", "Eta", 50, -5, 5);
-            Filter1_Phi = subDir_Filter1_Observables.make<TH1D>("Phi", "Phi", 50, -3.5, 3.5);
+            subDir_Filter1_Observables = subDir_Filter1.mkdir( "Trigger Object Observables" );
+            histContainer_["Filter1_Pt"] = subDir_Filter1_Observables.make<TH1F>("Pt", "Pt", 50, 0, 200);
+            histContainer_["Filter1_Eta"] = subDir_Filter1_Observables.make<TH1F>("Eta", "Eta", 50, -5, 5);
+            histContainer_["Filter1_Phi"] = subDir_Filter1_Observables.make<TH1F>("Phi", "Phi", 50, -3.5, 3.5);
 
             subDir_Filter1_MatchedJetObservables = subDir_Filter1.mkdir( "matched RECO Jet Observables" );
-            Filter1_matchedJetPt = subDir_Filter1_MatchedJetObservables.make<TH1D>("Filter 1 matched Jet Pt", "Filter 1 matched Jet Pt", 50, 0, 200);
-            Total_matchedJetPt = subDir_Filter1_MatchedJetObservables.make<TH1D>("matched Jet Pt", "matched Jet Pt", 50, 0, 200);
+            histContainer_["Filter1_matchedJetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Pt", "Filter 1 matched Jet Pt", 50, 0, 100);
+            histContainer_["Total_matchedJetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Pt", "matched Jet Pt", 50, 0, 100);
+            distContainer_["Filter1_TriggerObject_Reco_Pt"] = subDir_Filter1_MatchedJetObservables.make<TH2F>("Matching", "Filter Object, Matched RECO Jet Pt; RECO Jet Pt (GeV); Filter Obj Jet Pt (GeV)", 50, 0, 200, 50, 0, 200);//cndjschdjkshcjkdnsk
+
 
             subDir_Filter1_TurnOnCurves = subDir_Filter1.mkdir( "Turn On Curves" );
+            distContainer_["TriggerObject_Reco_Pt"] = subDir_Filter1_TurnOnCurves.make<TH2F>("Pt", "Pt", 50, 0, 200, 50, 0, 200);
 
             // CSV Filter
             subDir_Filter2 = fileService->mkdir( filter2_.c_str() );
 
-            subDir_Filter2_Observables = subDir_Filter2.mkdir( "Filter Observables" );
-            Filter2_Pt = subDir_Filter2_Observables.make<TH1D>("Pt", "Pt", 50, 0, 200);
-            Filter2_Eta = subDir_Filter2_Observables.make<TH1D>("Eta", "Eta", 50, -5, 5);
-            Filter2_Phi = subDir_Filter2_Observables.make<TH1D>("Phi", "Phi", 50, -3.5, 3.5);
+            subDir_Filter2_Observables = subDir_Filter2.mkdir( "Trigger Object Observables" );
+            histContainer_["Filter2_Pt"] = subDir_Filter2_Observables.make<TH1F>("Pt", "Pt", 50, 0, 200);
+            histContainer_["Filter2_Eta"] = subDir_Filter2_Observables.make<TH1F>("Eta", "Eta", 50, -5, 5);
+            histContainer_["Filter2_Phi"] = subDir_Filter2_Observables.make<TH1F>("Phi", "Phi", 50, -3.5, 3.5);
 
             subDir_Filter2_MatchedJetObservables = subDir_Filter2.mkdir( "matched RECO Jet Observables" );
-            Filter2_matchedJetBTag = subDir_Filter2_MatchedJetObservables.make<TH1D>("Filter 2 matched Jet CSV", "Filter 2 matched Jet CSV", 50, 0, 15);
-            Total_matchedJetBTag = subDir_Filter2_MatchedJetObservables.make<TH1D>("matched Jet CSV", "matched Jet CSV", 50, 0, 15);
+            histContainer_["Filter2_matchedJetBTag"] = subDir_Filter2_MatchedJetObservables.make<TH1F>("Filter 2 matched Jet CSV", "Filter 2 matched Jet CSV", 50, 0, 15);
+            histContainer_["Total_matchedJetBTag"] = subDir_Filter2_MatchedJetObservables.make<TH1F>("matched Jet CSV", "matched Jet CSV", 50, 0, 15);
 
             subDir_Filter2_TurnOnCurves = subDir_Filter2.mkdir( "Turn On Curves" );
       }
@@ -399,14 +461,14 @@ TriggerAnalyser::beginJob(){
             // 30GeV Jet Filter
             subDir_Filter1 = fileService->mkdir( filter1_.c_str() );
 
-            subDir_Filter1_Observables = subDir_Filter1.mkdir( "Filter Observables" );
-            Filter1_Pt = subDir_Filter1_Observables.make<TH1D>("Pt", "Pt", 50, 0, 200);
-            Filter1_Eta = subDir_Filter1_Observables.make<TH1D>("Eta", "Eta", 50, -5, 5);
-            Filter1_Phi = subDir_Filter1_Observables.make<TH1D>("Phi", "Phi", 50, -3.5, 3.5);
+            subDir_Filter1_Observables = subDir_Filter1.mkdir( "Trigger Object Observables" );
+            histContainer_["Filter1_Pt"] = subDir_Filter1_Observables.make<TH1F>("Pt", "Pt", 50, 0, 200);
+            histContainer_["Filter1_Eta"] = subDir_Filter1_Observables.make<TH1F>("Eta", "Eta", 50, -5, 5);
+            histContainer_["Filter1_Phi"] = subDir_Filter1_Observables.make<TH1F>("Phi", "Phi", 50, -3.5, 3.5);
 
             subDir_Filter1_MatchedJetObservables = subDir_Filter1.mkdir( "matched RECO Jet Observables" );
-            Filter1_matchedJetPt = subDir_Filter1_MatchedJetObservables.make<TH1D>("Filter 1 matched Jet Pt", "Filter 1 matched Jet Pt", 50, 0, 200);
-            Total_matchedJetPt = subDir_Filter1_MatchedJetObservables.make<TH1D>("matched Jet Pt", "matched Jet Pt", 50, 0, 200);
+            histContainer_["Filter1_matchedJetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Pt", "Filter 1 matched Jet Pt", 50, 0, 200);
+            histContainer_["Total_matchedJetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Pt", "matched Jet Pt", 50, 0, 200);
 
             subDir_Filter1_TurnOnCurves = subDir_Filter1.mkdir( "Turn On Curves" );
       }
@@ -417,13 +479,13 @@ TriggerAnalyser::beginJob(){
             subDir_Filter1 = fileService->mkdir( filter1_.c_str() );
 
             subDir_Filter1_Observables = subDir_Filter1.mkdir( "Filter Observables" );
-            Filter1_Pt = subDir_Filter1_Observables.make<TH1D>("Pt", "Pt", 50, 0, 200);
-            Filter1_Eta = subDir_Filter1_Observables.make<TH1D>("Eta", "Eta", 50, -5, 5);
-            Filter1_Phi = subDir_Filter1_Observables.make<TH1D>("Phi", "Phi", 50, -3.5, 3.5);
+            histContainer_["Filter1_Pt"] = subDir_Filter1_Observables.make<TH1F>("Pt", "Pt", 50, 0, 200);
+            histContainer_["Filter1_Eta"] = subDir_Filter1_Observables.make<TH1F>("Eta", "Eta", 50, -5, 5);
+            histContainer_["Filter1_Phi"] = subDir_Filter1_Observables.make<TH1F>("Phi", "Phi", 50, -3.5, 3.5);
 
             subDir_Filter1_MatchedJetObservables = subDir_Filter1.mkdir( "matched RECO Jet Observables" );
-            Filter1_matchedJetPt = subDir_Filter1_MatchedJetObservables.make<TH1D>("Filter 1 matched Jet Pt", "Filter 1 matched Jet Pt", 50, 0, 200);
-            Total_matchedJetPt = subDir_Filter1_MatchedJetObservables.make<TH1D>("matched Jet Pt", "matched Jet Pt", 50, 0, 200);
+            histContainer_["Filter1_matchedJetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Pt", "Filter 1 matched Jet Pt", 50, 0, 200);
+            histContainer_["Total_matchedJetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Pt", "matched Jet Pt", 50, 0, 200);
 
             subDir_Filter1_TurnOnCurves = subDir_Filter1.mkdir( "Turn On Curves" );
 
@@ -431,13 +493,12 @@ TriggerAnalyser::beginJob(){
             subDir_Filter2 = fileService->mkdir( filter2_.c_str() );
 
             subDir_Filter2_Observables = subDir_Filter2.mkdir( "Filter Observables" );
-            Filter2_Pt = subDir_Filter2_Observables.make<TH1D>("Pt", "Pt", 50, 0, 200);
-            Filter2_Eta = subDir_Filter2_Observables.make<TH1D>("Eta", "Eta", 50, -5, 5);
-            Filter2_Phi = subDir_Filter2_Observables.make<TH1D>("Phi", "Phi", 50, -3.5, 3.5);
+            histContainer_["Filter2_Pt"] = subDir_Filter2_Observables.make<TH1F>("Pt", "Pt", 50, 0, 200);
+            histContainer_["Filter2_Eta"] = subDir_Filter2_Observables.make<TH1F>("Eta", "Eta", 50, -5, 5);
+            histContainer_["Filter2_Phi"] = subDir_Filter2_Observables.make<TH1F>("Phi", "Phi", 50, -3.5, 3.5);
 
             subDir_Filter2_MatchedJetObservables = subDir_Filter2.mkdir( "matched RECO Jet Observables" );
-            Filter2_matchedJetPt = subDir_Filter2_MatchedJetObservables.make<TH1D>("Filter 2 matched Jet Pt", "Filter 2 matched Jet Pt", 50, 0, 200);
-            Total_matchedJetPt = subDir_Filter2_MatchedJetObservables.make<TH1D>("matched Jet Pt", "matched Jet Pt", 50, 0, 200);
+            histContainer_["Filter2_matchedJetPt"] = subDir_Filter2_MatchedJetObservables.make<TH1F>("Filter 2 matched Jet Pt", "Filter 2 matched Jet Pt", 50, 0, 200);
 
             subDir_Filter2_TurnOnCurves = subDir_Filter2.mkdir( "Turn On Curves" );
 
@@ -445,13 +506,12 @@ TriggerAnalyser::beginJob(){
             subDir_Filter3 = fileService->mkdir( filter3_.c_str() );
 
             subDir_Filter3_Observables = subDir_Filter3.mkdir( "Filter Observables" );
-            Filter3_Pt = subDir_Filter3_Observables.make<TH1D>("Pt", "Pt", 50, 0, 200);
-            Filter3_Eta = subDir_Filter3_Observables.make<TH1D>("Eta", "Eta", 50, -5, 5);
-            Filter3_Phi = subDir_Filter3_Observables.make<TH1D>("Phi", "Phi", 50, -3.5, 3.5);
+            histContainer_["Filter3_Pt"] = subDir_Filter3_Observables.make<TH1F>("Pt", "Pt", 50, 0, 200);
+            histContainer_["Filter3_Eta"] = subDir_Filter3_Observables.make<TH1F>("Eta", "Eta", 50, -5, 5);
+            histContainer_["Filter3_Phi"] = subDir_Filter3_Observables.make<TH1F>("Phi", "Phi", 50, -3.5, 3.5);
 
             subDir_Filter3_MatchedJetObservables = subDir_Filter3.mkdir( "matched RECO Jet Observables" );
-            Filter3_matchedJetPt = subDir_Filter3_MatchedJetObservables.make<TH1D>("Filter 3 matched Jet Pt", "Filter 3 matched Jet Pt", 50, 0, 200);
-            Total_matchedJetPt = subDir_Filter3_MatchedJetObservables.make<TH1D>("matched Jet Pt", "matched Jet Pt", 50, 0, 200);
+            histContainer_["Filter3_matchedJetPt"] = subDir_Filter3_MatchedJetObservables.make<TH1F>("Filter 3 matched Jet Pt", "Filter 3 matched Jet Pt", 50, 0, 200);
 
             subDir_Filter3_TurnOnCurves = subDir_Filter3.mkdir( "Turn On Curves" );
       }
@@ -460,61 +520,111 @@ TriggerAnalyser::beginJob(){
 // ------------ method called once each job just after ending the event loop  ------------
 void 
 TriggerAnalyser::endJob(){
+      //reco vs trigger object
+      // CREATE TRIGGER TURN ON CURVES -------------------------------------------------------------- //
+
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_JetMultiplicity"],histContainer_["CrossTrigger_Total_JetMultiplicity"]);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity"]->SetTitle("TGraphAsymmErrors Example");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity"]->SetMarkerColor(4);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity"]->SetMarkerStyle(21);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity"]->Draw("ALP");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity"]->Write();
+
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_HT"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_hltHT"],histContainer_["CrossTrigger_Total_hltHT"]);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_HT"]->SetTitle("TGraphAsymmErrors Example");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_HT"]->SetMarkerColor(4);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_HT"]->SetMarkerStyle(21);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_HT"]->Draw("ALP");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_HT"]->Write();
+
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_MET"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_METHist"],histContainer_["CrossTrigger_Total_METHist"]);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_MET"]->SetTitle("TGraphAsymmErrors Example");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_MET"]->SetMarkerColor(4);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_MET"]->SetMarkerStyle(21);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_MET"]->Draw("ALP");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_MET"]->Write();
+
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_VertexMultiplicityHist"],histContainer_["CrossTrigger_Total_VertexMultiplicityHist"]);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"]->SetTitle("TGraphAsymmErrors Example");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"]->SetMarkerColor(4);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"]->SetMarkerStyle(21);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"]->Draw("ALP");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"]->Write();
 
 
-      // CREATE TURN ON CURVES ---------------------------------------------------------------------- //
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetPt"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_JetPtHist"],histContainer_["CrossTrigger_Total_JetPtHist"]);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetPt"]->SetTitle("TGraphAsymmErrors Example");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetPt"]->SetMarkerColor(4);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetPt"]->SetMarkerStyle(21);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetPt"]->Draw("ALP");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetPt"]->Write();
+
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_LeptonPt"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_LeptonPtHist"],histContainer_["CrossTrigger_Total_LeptonPtHist"]);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_LeptonPt"]->SetTitle("TGraphAsymmErrors Example");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_LeptonPt"]->SetMarkerColor(4);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_LeptonPt"]->SetMarkerStyle(21);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_LeptonPt"]->Draw("ALP");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_LeptonPt"]->Write();
+
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetCSV"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_JetCSVHist"],histContainer_["CrossTrigger_Total_JetCSVHist"]);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetCSV"]->SetTitle("TGraphAsymmErrors Example");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetCSV"]->SetMarkerColor(4);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetCSV"]->SetMarkerStyle(21);
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetCSV"]->Draw("ALP");
+      turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetCSV"]->Write();
+
+      // CREATE FILTER TURN ON CURVES --------------------------------------------------------------- //
 
       if ( hadronicleg_ == "SingleTop" ){
 
-            Filter1_TurnOnCurve_Pt = subDir_Filter1_TurnOnCurves.make<TGraphAsymmErrors>(Filter1_matchedJetPt,Total_matchedJetPt);
-            Filter1_TurnOnCurve_Pt->SetTitle("TGraphAsymmErrors Example");
-            Filter1_TurnOnCurve_Pt->SetMarkerColor(4);
-            Filter1_TurnOnCurve_Pt->SetMarkerStyle(21);
-            Filter1_TurnOnCurve_Pt->Draw("ALP");
-            Filter1_TurnOnCurve_Pt->Write();
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"] = subDir_Filter1_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["Filter1_matchedJetPt"] ,histContainer_["Total_matchedJetPt"]);
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->SetTitle("TGraphAsymmErrors Example");
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->SetMarkerColor(4);
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->SetMarkerStyle(21);
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->Draw("ALP");
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->Write();
 
-            Filter2_TurnOnCurve_BTag = subDir_Filter2_TurnOnCurves.make<TGraphAsymmErrors>(Filter2_matchedJetBTag,Total_matchedJetBTag);
-            Filter2_TurnOnCurve_BTag->SetTitle("TGraphAsymmErrors Example");
-            Filter2_TurnOnCurve_BTag->SetMarkerColor(4);
-            Filter2_TurnOnCurve_BTag->SetMarkerStyle(21);
-            Filter2_TurnOnCurve_BTag->Draw("ALP");
-            Filter2_TurnOnCurve_BTag->Write();
+            turnOnCurveContainer_["Filter2_TurnOnCurve_BTag"] = subDir_Filter2_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["Filter2_matchedJetBTag"],histContainer_["Total_matchedJetBTag"]);
+            turnOnCurveContainer_["Filter2_TurnOnCurve_BTag"]->SetTitle("TGraphAsymmErrors Example");
+            turnOnCurveContainer_["Filter2_TurnOnCurve_BTag"]->SetMarkerColor(4);
+            turnOnCurveContainer_["Filter2_TurnOnCurve_BTag"]->SetMarkerStyle(21);
+            turnOnCurveContainer_["Filter2_TurnOnCurve_BTag"]->Draw("ALP");
+            turnOnCurveContainer_["Filter2_TurnOnCurve_BTag"]->Write();
       }
 
       if ( hadronicleg_ == "TTBarJet30" ){
 
-            Filter1_TurnOnCurve_Pt = subDir_Filter1_TurnOnCurves.make<TGraphAsymmErrors>(Filter1_matchedJetPt,Total_matchedJetPt);
-            Filter1_TurnOnCurve_Pt->SetTitle("TGraphAsymmErrors Example");
-            Filter1_TurnOnCurve_Pt->SetMarkerColor(4);
-            Filter1_TurnOnCurve_Pt->SetMarkerStyle(21);
-            Filter1_TurnOnCurve_Pt->Draw("ALP");
-            Filter1_TurnOnCurve_Pt->Write();
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"] = subDir_Filter1_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["Filter1_matchedJetPt"],histContainer_["Total_matchedJetPt"]);
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->SetTitle("TGraphAsymmErrors Example");
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->SetMarkerColor(4);
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->SetMarkerStyle(21);
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->Draw("ALP");
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->Write();
       }
 
       if ( hadronicleg_ == "TTBarJet304050" ){
 
-            Filter1_TurnOnCurve_Pt = subDir_Filter1_TurnOnCurves.make<TGraphAsymmErrors>(Filter1_matchedJetPt,Total_matchedJetPt);
-            Filter1_TurnOnCurve_Pt->SetTitle("TGraphAsymmErrors Example");
-            Filter1_TurnOnCurve_Pt->SetMarkerColor(4);
-            Filter1_TurnOnCurve_Pt->SetMarkerStyle(21);
-            Filter1_TurnOnCurve_Pt->Draw("ALP");
-            Filter1_TurnOnCurve_Pt->Write();
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"] = subDir_Filter1_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["Filter1_matchedJetPt"],histContainer_["Total_matchedJetPt"]);
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->SetTitle("TGraphAsymmErrors Example");
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->SetMarkerColor(4);
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->SetMarkerStyle(21);
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->Draw("ALP");
+            turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->Write();
 
-            Filter2_TurnOnCurve_Pt = subDir_Filter2_TurnOnCurves.make<TGraphAsymmErrors>(Filter2_matchedJetPt,Total_matchedJetPt);
-            Filter2_TurnOnCurve_Pt->SetTitle("TGraphAsymmErrors Example");
-            Filter2_TurnOnCurve_Pt->SetMarkerColor(4);
-            Filter2_TurnOnCurve_Pt->SetMarkerStyle(21);
-            Filter2_TurnOnCurve_Pt->Draw("ALP");
-            Filter2_TurnOnCurve_Pt->Write();
+            turnOnCurveContainer_["Filter2_TurnOnCurve_Pt"] = subDir_Filter2_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["Filter2_matchedJetPt"],histContainer_["Total_matchedJetPt"]);
+            turnOnCurveContainer_["Filter2_TurnOnCurve_Pt"]->SetTitle("TGraphAsymmErrors Example");
+            turnOnCurveContainer_["Filter2_TurnOnCurve_Pt"]->SetMarkerColor(4);
+            turnOnCurveContainer_["Filter2_TurnOnCurve_Pt"]->SetMarkerStyle(21);
+            turnOnCurveContainer_["Filter2_TurnOnCurve_Pt"]->Draw("ALP");
+            turnOnCurveContainer_["Filter2_TurnOnCurve_Pt"]->Write();
 
-            Filter3_TurnOnCurve_Pt = subDir_Filter3_TurnOnCurves.make<TGraphAsymmErrors>(Filter3_matchedJetPt,Total_matchedJetPt);
-            Filter3_TurnOnCurve_Pt->SetTitle("TGraphAsymmErrors Example");
-            Filter3_TurnOnCurve_Pt->SetMarkerColor(4);
-            Filter3_TurnOnCurve_Pt->SetMarkerStyle(21);
-            Filter3_TurnOnCurve_Pt->Draw("ALP");
-            Filter3_TurnOnCurve_Pt->Write();
+            turnOnCurveContainer_["Filter3_TurnOnCurve_Pt"] = subDir_Filter3_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["Filter3_matchedJetPt"],histContainer_["Total_matchedJetPt"]);
+            turnOnCurveContainer_["Filter3_TurnOnCurve_Pt"]->SetTitle("TGraphAsymmErrors Example");
+            turnOnCurveContainer_["Filter3_TurnOnCurve_Pt"]->SetMarkerColor(4);
+            turnOnCurveContainer_["Filter3_TurnOnCurve_Pt"]->SetMarkerStyle(21);
+            turnOnCurveContainer_["Filter3_TurnOnCurve_Pt"]->Draw("ALP");
+            turnOnCurveContainer_["Filter3_TurnOnCurve_Pt"]->Write();
       }
-
 }
 
 // ------------ method called when starting to processes a run  ------------

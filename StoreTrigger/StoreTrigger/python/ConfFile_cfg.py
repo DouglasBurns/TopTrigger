@@ -4,7 +4,7 @@ process = cms.Process("Demo")
 
 process.load("FWCore.MessageService.MessageLogger_cfi")
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(100000) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 
 # Latest MC Files - Currently 74X Release
 process.source = cms.Source("PoolSource",
@@ -21,7 +21,8 @@ process.source = cms.Source("PoolSource",
         # GEN-SIM-RAW
         # 'root://xrootd.unl.edu//store/mc/RunIISpring15DR74/TTJets_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8/GEN-SIM-RAW/AsymptFlat10to50bx25Raw_MCRUN2_74_V9-v1/10000/00BA7065-3F12-E511-AAB5-00259073E36E.root'
     )
-)
+)  
+
 
 # Input Triggers and Filters
 process.Template = cms.EDAnalyzer('TriggerAnalyser',
@@ -31,6 +32,7 @@ process.Template = cms.EDAnalyzer('TriggerAnalyser',
     mets = cms.InputTag('slimmedMETs','','PAT'),
     electrons = cms.InputTag('slimmedElectrons','','PAT'),
     muons = cms.InputTag('slimmedMuons','','PAT'),
+    vertices = cms.InputTag('offlineSlimmedPrimaryVertices','','PAT'),
     SingleLeptonTriggerInput = cms.string(''),
     CrossTriggerInput = cms.string(''),
     FilterInput1 = cms.string(''),
@@ -70,4 +72,4 @@ process.p = cms.Path(
 
 # OutFile
 process.TFileService = cms.Service('TFileService',
-    fileName = cms.string('TestTrdscigger.root'))
+    fileName = cms.string('TestTrigger.root'))
