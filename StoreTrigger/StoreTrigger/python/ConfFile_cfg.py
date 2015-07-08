@@ -5,6 +5,7 @@ process = cms.Process("Demo")
 process.load("FWCore.MessageService.MessageLogger_cfi")
 
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
+process.MessageLogger.cerr.FwkReport.reportEvery = 1000
 
 # Latest MC Files - Currently 74X Release
 process.source = cms.Source("PoolSource",
@@ -72,4 +73,5 @@ process.p = cms.Path(
 
 # OutFile
 process.TFileService = cms.Service('TFileService',
-    fileName = cms.string('TestTrigger.root'))
+    # fileName = cms.string('TestTrigger.root'))
+    fileName = cms.string('Trigger.root'))

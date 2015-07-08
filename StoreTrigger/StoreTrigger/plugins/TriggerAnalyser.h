@@ -82,7 +82,7 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       float jetCSV, forwardjeteta, hltHT = 0;
       float metPt, metEnergy = 0;
       float leptonPt, leptonEta, leptonEnergy = 0;
-      int jetMultiplicity, matchedJetIndex = 0;
+      int jetMultiplicity, matched_filt_obj_Index = 0;
       int vertexMultiplicity;
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
