@@ -17,19 +17,19 @@
 #include <CommonTools/UtilAlgos/interface/TFileService.h>
 #include <DataFormats/Math/interface/deltaR.h>
 
-#include <TString.h>
 #include <string>
+#include <limits>
+#include <vector>
+#include <map>
+#include <TString.h>
+#include <TH1.h>
 #include <TH1F.h>
 #include <TH2F.h>
-#include "TEfficiency.h"
-#include <TH1.h>
-#include <limits>
-#include <TPad.h>
+#include <TEfficiency.h>
 #include <TGraph.h>
 #include <TGraphAsymmErrors.h>
-
 #include <TCanvas.h>
-#include <map>
+#include <TPad.h>
 //
 // class declaration
 //
@@ -60,6 +60,7 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       const std::string filter2_;
       const std::string filter3_;
       const std::string btagger_;
+      const std::string electronID_;
       const std::string hadronicleg_;
       const std::string leptonicleg_;
 
@@ -77,13 +78,17 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       TFileDirectory subDir_Filter1_MatchedJetObservables, subDir_Filter2_MatchedJetObservables, subDir_Filter3_MatchedJetObservables;
       TFileDirectory subDir_Filter1_TurnOnCurves, subDir_Filter2_TurnOnCurves, subDir_Filter3_TurnOnCurves;
 
-      bool isJet, isMatched, SingleLeptonTrigDecision, CrossTriggerTrigDecision, CrossTriggerCombinedTrigDecision = false;
-      unsigned int crossIndex, singleleptonIndex = 9999;
-      float jetCSV, forwardjeteta, hltHT = 0;
+      std::vector<int> leadingLeptonIndex;
+      bool isJet, isMatched, isMatchedToLepton, SingleLeptonTrigDecision, CrossTriggerTrigDecision, CrossTriggerCombinedTrigDecision = false;
+      unsigned int Index, leptonIndex, crossIndex, singleleptonIndex = 9999;
+      float jetCSV, forwardjeteta, HT = 0;
       float metPt, metEnergy = 0;
       float leptonPt, leptonEta, leptonEnergy = 0;
-      int jetMultiplicity, matched_filt_obj_Index = 0;
+      int jetMultiplicity_20, jetMultiplicity_30, jetMultiplicity_40, jetMultiplicity_50 = 0;
       int vertexMultiplicity;
+      int no_Jets, no_BJets, no_Lepton, no_Muons, no_Electrons = 0;
+      bool passMockEventSelection = false;
+      std::string CanvasName; 
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) override;
