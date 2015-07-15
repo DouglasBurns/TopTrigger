@@ -68,5 +68,5 @@ process.p = cms.Path(
 
 # OutFile
 process.TFileService = cms.Service('TFileService',
-    # fileName = cms.string('TestTrigger.root'))
-    fileName = cms.string('Trigger_MC_50ns_NoJetCleaning.root'))
+    fileName = cms.string('TestTrigger2.root'))
+    # fileName = cms.string('Trigger_MC_50ns.root'))

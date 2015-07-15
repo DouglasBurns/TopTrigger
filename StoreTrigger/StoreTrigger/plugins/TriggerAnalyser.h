@@ -78,7 +78,7 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       TFileDirectory subDir_Filter1_MatchedJetObservables, subDir_Filter2_MatchedJetObservables, subDir_Filter3_MatchedJetObservables;
       TFileDirectory subDir_Filter1_TurnOnCurves, subDir_Filter2_TurnOnCurves, subDir_Filter3_TurnOnCurves;
 
-      std::vector<int> leadingLeptonIndex;
+      std::vector<int> leadingElectronIndex, leadingMuonIndex, cleanedJetIndex, cleanedBJetIndex;
       bool isJet, isMatched, isMatchedToLepton, SingleLeptonTrigDecision, CrossTriggerTrigDecision, CrossTriggerCombinedTrigDecision = false;
       unsigned int Index, leptonIndex, crossIndex, singleleptonIndex = 9999;
       float jetCSV, forwardjeteta, HT = 0;
