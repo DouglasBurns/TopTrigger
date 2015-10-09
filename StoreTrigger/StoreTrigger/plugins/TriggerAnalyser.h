@@ -89,22 +89,25 @@ class TriggerAnalyser : public edm::EDAnalyzer {
       TFileDirectory subDir_Filter1_MatchedJetObservables, subDir_Filter2_MatchedJetObservables, subDir_Filter3_MatchedJetObservables;
       TFileDirectory subDir_Filter1_TurnOnCurves, subDir_Filter2_TurnOnCurves, subDir_Filter3_TurnOnCurves;
 
-      std::vector<int> leadingElectronIndex, leadingMuonIndex, cleanedJetIndex, cleanedBJetIndex, cleanedRECOJetIndex;
+      std::vector<pat::Electron> tightRecoElectrons;
+      std::vector<pat::Muon> tightRecoMuons;
+      std::vector<pat::Jet> cleanedRecoJets;
+      std::vector<pat::Jet> cleanedRecoBJets;
+
+
       bool isJetCollection, isBJetCollection = false;
       bool passedFilter1, passedFilter2, passedFilter3, isMatchedToLepton = false;
-      bool SingleLeptonTrigDecision, CrossTriggerTrigDecision = false;
-      unsigned int Index, leptonIndex, crossIndex, singleleptonIndex = 9999;
+      bool SL_TrigDecision, X_TrigDecision = false;
       float jetCSV, forwardjeteta, HT, ST = 0;
       float leptonPt, leptonEta, leptonEnergy = 0;
       float ptcut = 0;
-      int jetMultiplicity_20, jetMultiplicity_30, jetMultiplicity_40, jetMultiplicity_50 = 0;
-      int vertexMultiplicity;
+      int jetMult_20, jetMult_30, jetMult_40, jetMult_50 = 0;
+      int vertexMult;
       int no_Jets, no_BJets, no_Muons, no_Electrons = 0;
       int TypeOfEvent = 0;
       bool passEventSelection = false;
       std::vector<pat::TriggerObjectStandAlone> hltJets, hltBJets, hltLeadingLeptons;
       std::vector<pat::Jet> cleanedJets;
-      // float a, b;  
 
       //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
       //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;

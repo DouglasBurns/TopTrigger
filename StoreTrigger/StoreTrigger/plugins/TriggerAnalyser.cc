@@ -92,35 +92,30 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
       // Perform Event Selection
       passEventSelection = false;
-      leadingElectronIndex.clear();
-      leadingMuonIndex.clear();
-      cleanedJetIndex.clear();
-      cleanedBJetIndex.clear();
+
+      tightRecoElectrons.clear();
+      tightRecoMuons.clear();
+      cleanedRecoJets.clear();
+      cleanedRecoBJets.clear();
 
       // Tight Electrons
-      Index = 0;
       if (electrons->size() != 0){
             for (auto lepton = electrons->begin(); lepton != electrons->end(); ++lepton){
-                  if (leptontype_ == "Mu20") ptcut=30;
+                  if (leptontype_ == "Mu20") ptcut=30;//change pt cuts depening on triggers
                   if (leptontype_ == "Mu24") ptcut=30;
                   if (leptontype_ == "Ele27") ptcut=30;
                   if (leptontype_ == "Ele32") ptcut=35;
 
-                  if (lepton->pt() > ptcut && abs(lepton->eta()) < 2.1 ){
-                        if (lepton->electronID(electronID_)) leadingElectronIndex.push_back(Index);
+                  if (lepton->pt() > ptcut && abs(lepton->eta()) < 2.1 && lepton->electronID(electronID_)){
+                        tightRecoElectrons.push_back(*lepton);
                   }
-                  ++Index;
             }
       }
 
       // Tight Isolated Muons
-      Index = 0;
-      // std::cout << "Number of Vertices : " << vertices->size() << std::endl;
       if (vertices->size() != 0){
             auto vertex = vertices->at(0);
             if (vertex.isValid()) {
-                   // std::cout << "Number of Muons : " << muons->size() << std::endl;
-
                   if (muons->size() != 0){
                         for (auto lepton = muons->begin(); lepton != muons->end(); ++lepton){
 
@@ -129,106 +124,76 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                               if (leptontype_ == "Ele27") ptcut=22;
                               if (leptontype_ == "Ele32") ptcut=22;
 
-                              if (lepton->pt() > ptcut && abs(lepton->eta()) < 2.1){
-                                    if (lepton->isTightMuon(vertex) && isIsolated(*lepton)) leadingMuonIndex.push_back(Index);
+                              if ( lepton->pt() > ptcut && abs(lepton->eta() && lepton->isTightMuon(vertex) && isIsolated(*lepton)) < 2.1 ){
+                                    tightRecoMuons.push_back(*lepton);
                               }
-                              ++Index;
                         }
                   }
             }
       }
 
-      // std::cout << "Size : " << leadingElectronIndex.size() << "  Indices : ";
-      // for (uint x = 0; x<leadingElectronIndex.size(); ++x) std::cout << " " << leadingElectronIndex[x];
-      // std::cout << std::endl;
-
-      // std::cout << "Muon Index Size : " << leadingMuonIndex.size() << "  Indices : ";
-      // for (uint x = 0; x<leadingMuonIndex.size(); ++x) std::cout << " " << leadingMuonIndex[x];
-      // std::cout << std::endl;
-
-      Index = 0;
+      // Cleaned Jets
       if (jets->size() != 0){
             for( auto jet = jets->begin(); jet != jets->end(); ++jet ){
                   isMatchedToLepton = false;
-                  if (isGoodJet(*jet)){
+                  if (!isGoodJet(*jet)) continue;
       
-                        if ( leadingElectronIndex.size() != 0 ){
-                              for (uint x = 0; x<leadingElectronIndex.size(); ++x){
-                                    if ( leadingElectronIndex.size() <= electrons->size() ) continue;
-                                    auto lepton = electrons->at(leadingElectronIndex[x]);                              
-                                    if (reco::deltaR(lepton, *jet) < 0.3) isMatchedToLepton = true;
-                              }
-                        }
-                  
-                        if ( leadingMuonIndex.size() != 0 ){
-                              for (uint x = 0; x<leadingMuonIndex.size(); ++x){
-                                    if ( leadingMuonIndex.size() <= muons->size() ) continue;
-                                    auto lepton = muons->at(leadingMuonIndex[x]);                              
-                                    if (reco::deltaR(lepton, *jet) < 0.3) isMatchedToLepton = true;
-                              }
-                        }
-
-                        if (!isMatchedToLepton) {
-                              cleanedJetIndex.push_back(Index);
-                              if (jet->bDiscriminator(btagger_) > 0.890 ){// 2 med bjet value (https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation74X50ns#Supported_Algorithms_and_Operati)
-                                    cleanedBJetIndex.push_back(Index);
-                              }
-                        }
+                  if ( tightRecoElectrons.size() != 0 ){
+                        if ( reco::deltaR(tightRecoElectrons[0], *jet) < 0.3 ) isMatchedToLepton = true;
                   }
-                  ++Index;
+            
+                  if ( tightRecoMuons.size() != 0 ){
+                        if ( reco::deltaR(tightRecoMuons[0], *jet) < 0.3) isMatchedToLepton = true;
+                  }
+
+                  if (isMatchedToLepton) continue;
+                  cleanedRecoJets.push_back(*jet);
+                  
+                  if (jet->bDiscriminator(btagger_) < 0.890 ) continue;// 2 med bjet value (https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation74X50ns#Supported_Algorithms_and_Operati)
+                  cleanedRecoBJets.push_back(*jet);
             }
       }
 
       // Perform an offline event selection
       if (leptonicleg_ == "Ele"){
             if (hadronicleg_ == "SingleTop"){
-                  if (cleanedJetIndex.size() >= 2 && cleanedBJetIndex.size() >= 1 && leadingMuonIndex.size() == 0 && leadingElectronIndex.size() == 1) passEventSelection = true;
+                  if (cleanedRecoJets.size() >= 2 && cleanedRecoBJets.size() >= 1 && tightRecoMuons.size() == 0 && tightRecoElectrons.size() == 1) passEventSelection = true;
             }
              if (hadronicleg_ == "TTBarJet30" || hadronicleg_ == "TTBarJet304050"){
-                  if (cleanedJetIndex.size() >= 4 && cleanedBJetIndex.size() >= 2 && leadingMuonIndex.size() == 0 && leadingElectronIndex.size() == 1) passEventSelection = true;
+                  if (cleanedRecoJets.size() >= 4 && cleanedRecoBJets.size() >= 2 && tightRecoMuons.size() == 0 && tightRecoElectrons.size() == 1) passEventSelection = true;
             }
       }
       if (leptonicleg_ == "Mu"){
             if (hadronicleg_ == "SingleTop"){
-                  if (cleanedJetIndex.size() >= 2 && cleanedBJetIndex.size() >= 1 && leadingMuonIndex.size() == 1 && leadingElectronIndex.size() == 0) passEventSelection = true;
+                  if (cleanedRecoJets.size() >= 2 && cleanedRecoBJets.size() >= 1 && tightRecoMuons.size() == 1 && tightRecoElectrons.size() == 0) passEventSelection = true;
             }
              if (hadronicleg_ == "TTBarJet30" || hadronicleg_ == "TTBarJet304050"){
-                  if (cleanedJetIndex.size() >= 4 && cleanedBJetIndex.size() >= 2 && leadingMuonIndex.size() == 1 && leadingElectronIndex.size() == 0) passEventSelection = true;
+                  if (cleanedRecoJets.size() >= 4 && cleanedRecoBJets.size() >= 2 && tightRecoMuons.size() == 1 && tightRecoElectrons.size() == 0) passEventSelection = true;
             }
       }
 
+
       // TRIGGER NAMES ------------------------------------------------------------------------------------ //
-      // std::cout << "Hello??? " << std::endl;
+
+      SL_TrigDecision = false;
+      X_TrigDecision = false;
 
       // Find and store indices of the input triggers
       for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
-            // std::cout << "Hello??? " << std::endl;
 
-            std::cout << "Trigger " << i << " in Menu : " << TrigNames.triggerName(i) << std::endl;
+            // std::cout << "Trigger " << i << " in Menu : " << TrigNames.triggerName(i) << std::endl;
             
             if ( TrigNames.triggerName(i).find(singleleptontrigger_) != std::string::npos ) {
-                  singleleptonIndex = i;
+                  if(triggerResults->accept(i) ) SL_TrigDecision = true;
             }
             if ( TrigNames.triggerName(i).find(crosstrigger_) != std::string::npos ) {
-                  crossIndex = i;
+                  if(triggerResults->accept(i) ) X_TrigDecision = true;
             }
       }
 
-
-      // TRIGGER RESULTS ---------------------------------------------------------------------------------- //
-
-      SingleLeptonTrigDecision = false;
-      CrossTriggerTrigDecision = false;
-
       TypeOfEvent=0;
-      histContainer_["TypeOfEvent"]->Fill(TypeOfEvent);
+      histContainer_["TypeOfEvent"]->Fill(TypeOfEvent); // Number of Events
 
-      // if(triggerResults->accept(singleleptonIndex)){
-      //       a++;
-      //       if(triggerResults->accept(crossIndex)){
-      //             b++;
-      //       }
-      // }
 
       // DIFFERENTIAL EFFICIENCIES ------------------------------------------------------------------------ //
       if (passEventSelection){
@@ -236,90 +201,79 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             TypeOfEvent=1;
             histContainer_["TypeOfEvent"]->Fill(TypeOfEvent);
 
-            if ( singleleptonIndex < triggerResults->size() ) {
-                  if(triggerResults->accept(singleleptonIndex)){
-                        SingleLeptonTrigDecision = true;
-                        TypeOfEvent=2;
-                        histContainer_["TypeOfEvent"]->Fill(TypeOfEvent);
-                  }
-            }
-            
-            if ( crossIndex < triggerResults->size() ) {
-                  if(triggerResults->accept(crossIndex)){
-                        CrossTriggerTrigDecision = true;
-                        TypeOfEvent=3;
-                        histContainer_["TypeOfEvent"]->Fill(TypeOfEvent);
-                  }
+            if (SL_TrigDecision == true){
+                  TypeOfEvent=2;
+                  histContainer_["TypeOfEvent"]->Fill(TypeOfEvent);
             }
 
+            if (X_TrigDecision == true){
+                  TypeOfEvent=3;
+                  histContainer_["TypeOfEvent"]->Fill(TypeOfEvent);
+            }            
 
             // VERTICES ----------------------------------------------------------------------------------- //
 
-            vertexMultiplicity = 0;
+            vertexMult = 0;
             for( auto vertex = vertices->begin(); vertex != vertices->end(); ++vertex ){ 
-                  if (!vertex->isValid()) continue;
-                  vertexMultiplicity += 1;
+                  if (vertex->isValid()) vertexMult += 1;
             }
 
-            histContainer_["CrossTrigger_Total_VertexMultiplicityHist"]->Fill(vertexMultiplicity);
-            if (CrossTriggerTrigDecision==true){
-                  histContainer_["CrossTrigger_Pass_VertexMultiplicityHist"]->Fill(vertexMultiplicity);
+            if (X_TrigDecision==true){
+                  histContainer_["CrossTrigger_Pass_VertexMultHist"]->Fill(vertexMult);
             }
+            histContainer_["CrossTrigger_Total_VertexMultHist"]->Fill(vertexMult);
 
 
             // JETS --------------------------------------------------------------------------------------- //
 
             // Select jets and store distributions
-            jetMultiplicity_20 = jetMultiplicity_30 = jetMultiplicity_40 = jetMultiplicity_50 = 0;
-            HT = 0;
-            ST = 0;
-            jetCSV = 0;
-            forwardjeteta = 0;
-
-            for (uint Index = 0; Index<cleanedJetIndex.size(); ++Index){
-                  auto jet = jets->at(cleanedJetIndex[Index]);   
+            jetMult_20 = jetMult_30 = jetMult_40 = jetMult_50 = 0;
+            forwardjeteta = jetCSV = 0;
+            HT = ST = 0;
+            
+            for (uint Jet = 0; Jet < cleanedRecoJets.size(); ++Jet){
 
                   // Number of jets in an event and HT depending on jet pt cut
-                  if ( jet.pt()>20) ++jetMultiplicity_20;
-                  if ( jet.pt()>30) ++jetMultiplicity_30;
-                  if ( jet.pt()>40) ++jetMultiplicity_40;
-                  if ( jet.pt()>50) ++jetMultiplicity_50;
+                  if ( cleanedRecoJets[Jet].pt()>20) ++jetMult_20;
+                  if ( cleanedRecoJets[Jet].pt()>30) ++jetMult_30;
+                  if ( cleanedRecoJets[Jet].pt()>40) ++jetMult_40;
+                  if ( cleanedRecoJets[Jet].pt()>50) ++jetMult_50;
                   
                   // HT is the sum of cleaned central jets over 20GeV (No MET or Leptons) for events that pass selection
-                  HT += jet.pt();
+                  HT += cleanedRecoJets[Jet].pt();
 
                   // Most forward jet has highest eta
-                  if (std::abs(jet.eta()) >= forwardjeteta) forwardjeteta = std::abs(jet.eta());
+                  if (std::abs(cleanedRecoJets[Jet].eta()) >= forwardjeteta) forwardjeteta = std::abs(cleanedRecoJets[Jet].eta());
 
                   // Jet with greatest btag value
-                  if (jet.bDiscriminator(btagger_) >= jetCSV) jetCSV = jet.bDiscriminator(btagger_);
+                  if (cleanedRecoJets[Jet].bDiscriminator(btagger_) >= jetCSV) jetCSV = cleanedRecoJets[Jet].bDiscriminator(btagger_);
 
-                  // Store Jet Pt, Eta, Higest CSV, Global_HT and Multiplicity in histograms 
-                  if (CrossTriggerTrigDecision==true){
-                        histContainer_["CrossTrigger_Pass_JetPtHist"]->Fill(jet.pt());
-                        histContainer_["CrossTrigger_Pass_JetEtaHist"]->Fill(jet.eta());
-                        histContainer_["CrossTrigger_Pass_JetPhiHist"]->Fill(jet.phi());
-                        histContainer_["CrossTrigger_Pass_JetCSVHist"]->Fill(jet.bDiscriminator(btagger_));
+                  // Store Jet Pt, Eta, Higest CSV, Global_HT and Mult in histograms 
+                  if (X_TrigDecision==true){
+                        histContainer_["CrossTrigger_Pass_JetPtHist"]->Fill(cleanedRecoJets[Jet].pt());
+                        histContainer_["CrossTrigger_Pass_JetEtaHist"]->Fill(cleanedRecoJets[Jet].eta());
+                        histContainer_["CrossTrigger_Pass_JetPhiHist"]->Fill(cleanedRecoJets[Jet].phi());
+                        histContainer_["CrossTrigger_Pass_JetCSVHist"]->Fill(cleanedRecoJets[Jet].bDiscriminator(btagger_));
                   }
-                  histContainer_["CrossTrigger_Total_JetPtHist"]->Fill(jet.pt());
-                  histContainer_["CrossTrigger_Total_JetEtaHist"]->Fill(jet.eta());
-                  histContainer_["CrossTrigger_Total_JetPhiHist"]->Fill(jet.phi());
-                  histContainer_["CrossTrigger_Total_JetCSVHist"]->Fill(jet.bDiscriminator(btagger_));
+                  histContainer_["CrossTrigger_Total_JetPtHist"]->Fill(cleanedRecoJets[Jet].pt());
+                  histContainer_["CrossTrigger_Total_JetEtaHist"]->Fill(cleanedRecoJets[Jet].eta());
+                  histContainer_["CrossTrigger_Total_JetPhiHist"]->Fill(cleanedRecoJets[Jet].phi());
+                  histContainer_["CrossTrigger_Total_JetCSVHist"]->Fill(cleanedRecoJets[Jet].bDiscriminator(btagger_));
             }
 
-            if(CrossTriggerTrigDecision==true){
-                  histContainer_["CrossTrigger_Pass_JetMultiplicity_20"]->Fill(jetMultiplicity_20);
-                  histContainer_["CrossTrigger_Pass_JetMultiplicity_30"]->Fill(jetMultiplicity_30);
-                  histContainer_["CrossTrigger_Pass_JetMultiplicity_40"]->Fill(jetMultiplicity_40);
-                  histContainer_["CrossTrigger_Pass_JetMultiplicity_50"]->Fill(jetMultiplicity_50);
+            if(X_TrigDecision==true){
+                  histContainer_["CrossTrigger_Pass_JetMult_20"]->Fill(jetMult_20);
+                  histContainer_["CrossTrigger_Pass_JetMult_30"]->Fill(jetMult_30);
+                  histContainer_["CrossTrigger_Pass_JetMult_40"]->Fill(jetMult_40);
+                  histContainer_["CrossTrigger_Pass_JetMult_50"]->Fill(jetMult_50);
                   histContainer_["CrossTrigger_Pass_greatestBtag"]->Fill(jetCSV);
                   histContainer_["CrossTrigger_Pass_forwardJetEta"]->Fill(forwardjeteta);
                   histContainer_["CrossTrigger_Pass_HT"]->Fill(HT);
             }
-            histContainer_["CrossTrigger_Total_JetMultiplicity_20"]->Fill(jetMultiplicity_20);
-            histContainer_["CrossTrigger_Total_JetMultiplicity_30"]->Fill(jetMultiplicity_30);
-            histContainer_["CrossTrigger_Total_JetMultiplicity_40"]->Fill(jetMultiplicity_40);
-            histContainer_["CrossTrigger_Total_JetMultiplicity_50"]->Fill(jetMultiplicity_50);
+            histContainer_["CrossTrigger_Total_JetMult_20"]->Fill(jetMult_20);
+            histContainer_["CrossTrigger_Total_JetMult_30"]->Fill(jetMult_30);
+            histContainer_["CrossTrigger_Total_JetMult_40"]->Fill(jetMult_40);
+            histContainer_["CrossTrigger_Total_JetMult_50"]->Fill(jetMult_50);
             histContainer_["CrossTrigger_Total_greatestBtag"]->Fill(jetCSV);
             histContainer_["CrossTrigger_Total_forwardJetEta"]->Fill(forwardjeteta);
             histContainer_["CrossTrigger_Total_HT"]->Fill(HT);  
@@ -332,10 +286,10 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             // Store MET of event
             for( auto met = mets->begin(); met != mets->end(); ++met ){ 
                   histContainer_["CrossTrigger_Total_METHist"]->Fill(met->energy());
-                  if(CrossTriggerTrigDecision==true){
+                  if(X_TrigDecision==true){
                         histContainer_["CrossTrigger_Pass_METHist"]->Fill(met->energy());
                   }
-                  ST += met->energy();
+                  ST += met->energy();//MET = MPT
             }
 
 
@@ -343,66 +297,64 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
      
             // Store the leading lepton pt, eta and energy distributions in histograms
             if (leptonicleg_ == "Ele"){            
-                  for (uint Index = 0; Index<leadingElectronIndex.size(); ++Index){
-                  auto lepton = electrons->at(leadingElectronIndex[Index]);  
+                  for (uint El = 0; El < tightRecoElectrons.size(); ++El){
 
-                        if(CrossTriggerTrigDecision==true){
-                              histContainer_["CrossTrigger_Pass_LeptonPtHist"]->Fill(lepton.pt());
-                              histContainer_["CrossTrigger_Pass_LeptonEtaHist"]->Fill(lepton.eta());
-                              histContainer_["CrossTrigger_Pass_LeptonPhiHist"]->Fill(lepton.phi());
-                              histContainer_["CrossTrigger_Pass_LeptonEnergyHist"]->Fill(lepton.energy());
+                        histContainer_["CrossTrigger_Total_LeptonPtHist"]->Fill(tightRecoElectrons[El].pt());
+                        histContainer_["CrossTrigger_Total_LeptonEtaHist"]->Fill(tightRecoElectrons[El].eta());
+                        histContainer_["CrossTrigger_Total_LeptonPhiHist"]->Fill(tightRecoElectrons[El].phi());
+                        histContainer_["CrossTrigger_Total_LeptonEnergyHist"]->Fill(tightRecoElectrons[El].energy());
+                        if(X_TrigDecision==true){
+                              histContainer_["CrossTrigger_Pass_LeptonPtHist"]->Fill(tightRecoElectrons[El].pt());
+                              histContainer_["CrossTrigger_Pass_LeptonEtaHist"]->Fill(tightRecoElectrons[El].eta());
+                              histContainer_["CrossTrigger_Pass_LeptonPhiHist"]->Fill(tightRecoElectrons[El].phi());
+                              histContainer_["CrossTrigger_Pass_LeptonEnergyHist"]->Fill(tightRecoElectrons[El].energy());
                         }
-                        histContainer_["CrossTrigger_Total_LeptonPtHist"]->Fill(lepton.pt());
-                        histContainer_["CrossTrigger_Total_LeptonEtaHist"]->Fill(lepton.eta());
-                        histContainer_["CrossTrigger_Total_LeptonPhiHist"]->Fill(lepton.phi());
-                        histContainer_["CrossTrigger_Total_LeptonEnergyHist"]->Fill(lepton.energy());
-                        ST += lepton.pt();
+
+                        ST += tightRecoElectrons[El].pt();
                   }
             }
 
             if ( leptonicleg_ == "Mu" ){
-                  for (uint Index = 0; Index<leadingMuonIndex.size(); ++Index){
-                  auto lepton = muons->at(leadingMuonIndex[Index]); 
+                  for (uint Mu = 0; Mu < tightRecoMuons.size(); ++Mu){
 
-                        if(CrossTriggerTrigDecision==true){
-                              histContainer_["CrossTrigger_Pass_LeptonPtHist"]->Fill(lepton.pt());
-                              histContainer_["CrossTrigger_Pass_LeptonEtaHist"]->Fill(lepton.eta());
-                              histContainer_["CrossTrigger_Pass_LeptonPhiHist"]->Fill(lepton.phi());
-                              histContainer_["CrossTrigger_Pass_LeptonEnergyHist"]->Fill(lepton.energy());
+                        histContainer_["CrossTrigger_Total_LeptonPtHist"]->Fill(tightRecoMuons[Mu].pt());
+                        histContainer_["CrossTrigger_Total_LeptonEtaHist"]->Fill(tightRecoMuons[Mu].eta());
+                        histContainer_["CrossTrigger_Total_LeptonPhiHist"]->Fill(tightRecoMuons[Mu].phi());
+                        histContainer_["CrossTrigger_Total_LeptonEnergyHist"]->Fill(tightRecoMuons[Mu].energy());
+                        if(X_TrigDecision==true){
+                              histContainer_["CrossTrigger_Pass_LeptonPtHist"]->Fill(tightRecoMuons[Mu].pt());
+                              histContainer_["CrossTrigger_Pass_LeptonEtaHist"]->Fill(tightRecoMuons[Mu].eta());
+                              histContainer_["CrossTrigger_Pass_LeptonPhiHist"]->Fill(tightRecoMuons[Mu].phi());
+                              histContainer_["CrossTrigger_Pass_LeptonEnergyHist"]->Fill(tightRecoMuons[Mu].energy());
                         }
-                        histContainer_["CrossTrigger_Total_LeptonPtHist"]->Fill(lepton.pt());
-                        histContainer_["CrossTrigger_Total_LeptonEtaHist"]->Fill(lepton.eta());
-                        histContainer_["CrossTrigger_Total_LeptonPhiHist"]->Fill(lepton.phi());
-                        histContainer_["CrossTrigger_Total_LeptonEnergyHist"]->Fill(lepton.energy());
-                        ST += lepton.pt();
+
+                        ST += tightRecoMuons[Mu].pt();
                   }
             } 
       }
-      // std::cout << "ST : " << ST << std::endl;
+
 
       // ST ----------------------------------------------------------------------------------------- //
 
+      // std::cout << "ST : " << ST << std::endl;
       histContainer_["CrossTrigger_Total_ST"]->Fill(ST);
-      if(CrossTriggerTrigDecision==true){
+      if(X_TrigDecision==true){
             histContainer_["CrossTrigger_Pass_ST"]->Fill(ST);
       }
 
 
-
-
-
+      // ############################################################################################ //
+      // ############################################################################################ //
+      // ############################################################################################ //
+      // ############################################################################################ //
+      // ############################################################################################ //
 
 
 
       // FILTERS: TRIGGER OBJECTS ------------------------------------------------------------------- //
 
-      if ( singleleptonIndex < triggerResults->size() ) {
-            if(triggerResults->accept(singleleptonIndex)) { // Change between single lepton and full hadronic triggers.???
-                  SingleLeptonTrigDecision = true;
-            }
-      }
-
-      if (SingleLeptonTrigDecision){
+      // if (SL_TrigDecision){
+      if (X_TrigDecision){
 
             hltJets.clear();
             hltBJets.clear();
@@ -412,9 +364,9 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             int N_Filter2_Tags = 0;
             int N_Filter3_Tags = 0;
 
-            bool passFilter1 = true;
-            bool passFilter2 = true;
-            bool passFilter3 = true;
+            bool passFilter1 = false;
+            bool passFilter2 = false;
+            bool passFilter3 = false;
 
             // Create hlt object collections
             for (pat::TriggerObjectStandAlone obj : *triggerObjects) {
@@ -428,9 +380,9 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                   if (obj.hasFilterLabel(filter3_)) ++N_Filter3_Tags;
             }
             
-            if ((hadronicleg_ == "TTBarJet304050" || hadronicleg_ == "TTBarJet30") && (N_Filter1_Tags < 3)) passFilter1 = false;
-            if ((hadronicleg_ == "TTBarJet304050") && (N_Filter2_Tags < 2)) passFilter2 = false;
-            if ((hadronicleg_ == "TTBarJet304050") && (N_Filter3_Tags < 1)) passFilter3 = false;
+            if ((hadronicleg_ == "TTBarJet304050" || hadronicleg_ == "TTBarJet30") && (N_Filter1_Tags >= 3)) passFilter1 = true;
+            if ((hadronicleg_ == "TTBarJet304050") && (N_Filter2_Tags >= 2)) passFilter2 = true;
+            if ((hadronicleg_ == "TTBarJet304050") && (N_Filter3_Tags >= 1)) passFilter3 = true;
 
             // if (hadronicleg_ == "TTBarJet304050" ) std::cout << "Event has : " << N_Filter1_Tags << " tricentral>30 tags, " << N_Filter2_Tags << " dicentral>40 tags and " << N_Filter3_Tags << " central>50 tags." << std::endl;
             // if (hadronicleg_ == "TTBarJet304050" ) std::cout << "Filter 1 : " << passFilter1 << ", Filter 2 : " << passFilter2 << ", Filter 3 : " << passFilter3 << std::endl;
@@ -497,6 +449,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
                   if (hadronicleg_ == "SingleTop" ){
                         for (uint recojet = 0; recojet < cleanedJets.size(); ++recojet){
+
                               for (uint hltjet = 0; hltjet < hltJets.size(); ++hltjet){
                                     if (reco::deltaR(cleanedJets[recojet], hltJets[hltjet]) > 0.3) continue;
                                     if ( hltJets[hltjet].hasFilterLabel(filter1_)){
@@ -593,9 +546,9 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                               for (uint hltjet = 0; hltjet < hltJets.size(); ++hltjet){
 
                                     if (reco::deltaR(cleanedJets[recojet], hltJets[hltjet]) > 0.3) continue;
+
                                     if (!passFilter1) continue;
                                     distContainer_["Filter1_hlt_vs_Reco_Pt"]->Fill(hltJets[hltjet].pt(),cleanedJets[recojet].pt());
-
                                     if ( hltJets[hltjet].hasFilterLabel(filter1_)){
 
                                           histContainer_["Filter1_Pt"]->Fill(hltJets[hltjet].pt());
@@ -605,11 +558,6 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                                           histContainer_["Filter1_matchedJetPt"]->Fill(cleanedJets[recojet].pt());
                                           histContainer_["Filter1_matchedJetEta"]->Fill(cleanedJets[recojet].eta());
                                           histContainer_["Filter1_matchedJetPhi"]->Fill(cleanedJets[recojet].phi());
-                                          
-                                          // if (passFilter2) histContainer_["Filter1_matchedJetPt_PassFilter2"]->Fill(cleanedJets[recojet].pt());
-
-
-                                          distContainer_["Filter1_hltPt_Nhltjets"]->Fill(hltJets[hltjet].pt(), hltJets.size() );
                                           
                                           if (!passFilter2) continue;
                                           if ( hltJets[hltjet].hasFilterLabel(filter2_)){
@@ -622,7 +570,6 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                                                 histContainer_["Filter2_matchedJetEta"]->Fill(cleanedJets[recojet].eta());
                                                 histContainer_["Filter2_matchedJetPhi"]->Fill(cleanedJets[recojet].phi());
 
-                                                distContainer_["Filter2_hltPt_Nhltjets"]->Fill(hltJets[hltjet].pt(), hltJets.size() );
                                                 
                                                 if (!passFilter3) continue;
                                                 if ( hltJets[hltjet].hasFilterLabel(filter3_)){
@@ -635,11 +582,10 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                                                       histContainer_["Filter3_matchedJetEta"]->Fill(cleanedJets[recojet].eta());
                                                       histContainer_["Filter3_matchedJetPhi"]->Fill(cleanedJets[recojet].phi());
                                           
-                                                      distContainer_["Filter3_hltPt_Nhltjets"]->Fill(hltJets[hltjet].pt(), hltJets.size() );
 
                                                 }
                                           }
-                                          break;
+                                    break;
                                     }
                               }
                         }
@@ -770,9 +716,9 @@ bool TriggerAnalyser::isGoodJet(const pat::Jet& jet) const {
       //       if (!passNHF) std::cout << "Has not passed Neutral Hadron Energy Fraction < 0.99 : " << jet.neutralHadronEnergyFraction() << std::endl;                  //
       //       if (!passNEMF) std::cout << "Has not passed Neutral EM Energy Fraction < 0.99 : " << jet.neutralEmEnergyFraction() << std::endl;                         //
       //       if (!passMUF) std::cout << "Has not passed muon Energy Fraction < 0.8 : " << jet.muonEnergyFraction() << std::endl;                                      //
-      //       if (!passNumConst) std::cout << "Has not passed Number of Constituents > 1: " << jet.chargedMultiplicity()+jet.neutralMultiplicity() << std::endl;       //
+      //       if (!passNumConst) std::cout << "Has not passed Number of Constituents > 1: " << jet.chargedMult()+jet.neutralMult() << std::endl;       //
       //       if (!passCHF) std::cout << "Has not passed Charged Hadron Energy Fraction > 0. : " << jet.chargedHadronEnergyFraction() << std::endl;                    //
-      //       if (!passCHM) std::cout << "Has not passed Charged Multiplicity > 0 : " << jet.chargedMultiplicity() << std::endl;                                       //
+      //       if (!passCHM) std::cout << "Has not passed Charged Mult > 0 : " << jet.chargedMult() << std::endl;                                       //
       //       if (!passCEMF) std::cout << "Has not passed Charged EM Energy Fraction < 0.99 : " << jet.chargedEmEnergyFraction() << std::endl;                         //
       // }                                                                                                                                                              //
       ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -815,14 +761,14 @@ TriggerAnalyser::beginJob(){
       histContainer_["CrossTrigger_Total_JetPhiHist"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetPhi", "Total_Eta; Jet Eta; Number of Events", 100, -3.5, 3.5);
       histContainer_["CrossTrigger_Pass_JetCSVHist"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetCSV", "Pass_JetCSV; RECO Jet pfCSVv2; Number of Events", 100, 0, 1);
       histContainer_["CrossTrigger_Total_JetCSVHist"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetCSV", "Total_JetCSV; RECO Jet pfCSVv2; Number of Events", 100, 0, 1);       
-      histContainer_["CrossTrigger_Pass_JetMultiplicity_20"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetMultiplicity_20", "Pass_JetMultiplicity_20; RECO Jet Multiplicity; Number of Events", 15, 0, 15);
-      histContainer_["CrossTrigger_Total_JetMultiplicity_20"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetMultiplicity_20", "Total_JetMultiplicity_20; RECO Jet Multiplicity; Number of Events", 15, 0, 15);
-      histContainer_["CrossTrigger_Pass_JetMultiplicity_30"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetMultiplicity_30", "Pass_JetMultiplicity_30; RECO Jet Multiplicity; Number of Events", 15, 0, 15);
-      histContainer_["CrossTrigger_Total_JetMultiplicity_30"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetMultiplicity_30", "Total_JetMultiplicity_30; RECO Jet Multiplicity; Number of Events", 15, 0, 15);
-      histContainer_["CrossTrigger_Pass_JetMultiplicity_40"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetMultiplicity_40", "Pass_JetMultiplicity_40; RECO Jet Multiplicity; Number of Events", 15, 0, 15);
-      histContainer_["CrossTrigger_Total_JetMultiplicity_40"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetMultiplicity_40", "Total_JetMultiplicity_40; RECO Jet Multiplicity; Number of Events", 15, 0, 15);
-      histContainer_["CrossTrigger_Pass_JetMultiplicity_50"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetMultiplicity_50", "Pass_JetMultiplicity_50; RECO Jet Multiplicity; Number of Events", 15, 0, 15);
-      histContainer_["CrossTrigger_Total_JetMultiplicity_50"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetMultiplicity_50", "Total_JetMultiplicity_50; RECO Jet Multiplicity; Number of Events", 15, 0, 15);
+      histContainer_["CrossTrigger_Pass_JetMult_20"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetMult_20", "Pass_JetMult_20; RECO Jet Mult; Number of Events", 15, 0, 15);
+      histContainer_["CrossTrigger_Total_JetMult_20"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetMult_20", "Total_JetMult_20; RECO Jet Mult; Number of Events", 15, 0, 15);
+      histContainer_["CrossTrigger_Pass_JetMult_30"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetMult_30", "Pass_JetMult_30; RECO Jet Mult; Number of Events", 15, 0, 15);
+      histContainer_["CrossTrigger_Total_JetMult_30"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetMult_30", "Total_JetMult_30; RECO Jet Mult; Number of Events", 15, 0, 15);
+      histContainer_["CrossTrigger_Pass_JetMult_40"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetMult_40", "Pass_JetMult_40; RECO Jet Mult; Number of Events", 15, 0, 15);
+      histContainer_["CrossTrigger_Total_JetMult_40"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetMult_40", "Total_JetMult_40; RECO Jet Mult; Number of Events", 15, 0, 15);
+      histContainer_["CrossTrigger_Pass_JetMult_50"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_JetMult_50", "Pass_JetMult_50; RECO Jet Mult; Number of Events", 15, 0, 15);
+      histContainer_["CrossTrigger_Total_JetMult_50"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetMult_50", "Total_JetMult_50; RECO Jet Mult; Number of Events", 15, 0, 15);
       histContainer_["CrossTrigger_Pass_HT"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_HT", "Pass_HT; RECO Jet HT (GeV); Number of Events", 50, 0, 700);
       histContainer_["CrossTrigger_Total_HT"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_HT", "Total_HT; RECO Jet HT (GeV); Number of Events", 50, 0, 700);
       histContainer_["CrossTrigger_Pass_ST"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_ST", "Pass_ST; RECO Jet ST (GeV); Number of Events", 50, 0, 1000);
@@ -836,8 +782,8 @@ TriggerAnalyser::beginJob(){
       histContainer_["Total_RECO_JetCSV"] = subDir_Observables_Jet.make<TH1F>("Total_RECO_Jet_CSV", "RECO Jet BTag; RECO Jet BTag pfCSVv2; Number of Events", 50, 0, 1);
 
       subDir_Observables_Vertices = subDir_Observables.mkdir( "Vertices" );
-      histContainer_["CrossTrigger_Pass_VertexMultiplicityHist"] = subDir_Observables_Vertices.make<TH1F>("CrossTrigger_Pass_VertexMultiplicityHist", "Pass_Vertex; Vertex Multiplicity; Number of Events", 30, 0, 30);
-      histContainer_["CrossTrigger_Total_VertexMultiplicityHist"] = subDir_Observables_Vertices.make<TH1F>("CrossTrigger_Total_VertexMultiplicityHist", "Total_Vertex; Vertex Multiplicity; Number of Events", 30, 0, 30);
+      histContainer_["CrossTrigger_Pass_VertexMultHist"] = subDir_Observables_Vertices.make<TH1F>("CrossTrigger_Pass_VertexMultHist", "Pass_Vertex; Vertex Mult; Number of Events", 30, 0, 30);
+      histContainer_["CrossTrigger_Total_VertexMultHist"] = subDir_Observables_Vertices.make<TH1F>("CrossTrigger_Total_VertexMultHist", "Total_Vertex; Vertex Mult; Number of Events", 30, 0, 30);
 
       subDir_Observables_MET = subDir_Observables.mkdir( "MET" );
       histContainer_["CrossTrigger_Pass_METHist"] = subDir_Observables_MET.make<TH1F>("CrossTrigger_Pass_MET", "Pass_MET; MET (GeV); Number of Events", 100, 0, 200);
@@ -923,14 +869,11 @@ TriggerAnalyser::beginJob(){
             histContainer_["Filter1_matchedJetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Pt", "Filter 1 matched Jet Pt; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
             histContainer_["Filter1_matchedJetEta"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Eta", "Filter 1 matched Jet Eta; RECO Jet Eta; Number of Events", 50, -3, 3);
             histContainer_["Filter1_matchedJetPhi"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Phi", "Filter 1 matched Jet Phi; RECO Jet Phi; Number of Events", 50, -3.5, 3.5);
-            histContainer_["Filter1_matchedJetPt_PassFilter2"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Pt Pass Filter 2", "Filter 1 matched Jet Pt Pass Filter 2; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
             histContainer_["Total_RECO_Filter1Background_JetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Background Filter 1", "Background Filter 1; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
 
             subDir_Filter1_TurnOnCurves = subDir_Filter1.mkdir( "Turn On Curves" );
             histContainer_["Filter1_dR"] = subDir_Filter1_TurnOnCurves.make<TH1F>("Filter1_dR","Filter1_dR",310, 0 ,0.31);
-            distContainer_["Filter1_hlt_vs_Reco_Pt"] = subDir_Filter1_TurnOnCurves.make<TH2F>("Matching", "Filter Object, Matched RECO Jet Pt; Filter Obj Jet Pt (GeV); RECO Jet Pt (GeV)", 50, 0, 200, 50, 0, 200);//cndjschdjkshcjkdnsk
-            // distContainer_["Filter1_hltPt_Nhltjets"] = subDir_Filter1_TurnOnCurves.make<TH2F>("Filter1_hltjetpt_nhltjets", "Filter1_hltjetpt_nhltjets, hlt Jet Pt; Filter Obj Jet Pt (GeV); Number of hltjets > 30GeV", xbins, xbinedges, 30, 0, 30);
-            distContainer_["Filter1_hltPt_Nhltjets"] = subDir_Filter1_TurnOnCurves.make<TH2F>("Filter1_hltjetpt_nhltjets", "Filter1_hltjetpt_nhltjets, hlt Jet Pt; Filter Obj Jet Pt (GeV); Number of hltjets > 30GeV", 100, 0, 200, 30, 0, 30);
+            distContainer_["Filter1_hlt_vs_Reco_Pt"] = subDir_Filter1_TurnOnCurves.make<TH2F>("Matching", "Filter Object, Matched RECO Jet Pt; Filter Obj Jet Pt (GeV); RECO Jet Pt (GeV)", 50, 0, 200, 50, 0, 200);
 
             // 40GeV Jet Filter
             subDir_Filter2 = fileService->mkdir( filter2_.c_str() );
@@ -944,12 +887,10 @@ TriggerAnalyser::beginJob(){
             histContainer_["Filter2_matchedJetPt"] = subDir_Filter2_MatchedJetObservables.make<TH1F>("Filter 2 matched Jet Pt", "Filter 2 matched Jet Pt; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
             histContainer_["Filter2_matchedJetEta"] = subDir_Filter2_MatchedJetObservables.make<TH1F>("Filter 2 matched Jet Eta", "Filter 2 matched Jet Eta; RECO Jet Eta; Number of Events", 50, -3, 3);
             histContainer_["Filter2_matchedJetPhi"] = subDir_Filter2_MatchedJetObservables.make<TH1F>("Filter 2 matched Jet Phi", "Filter 2 matched Jet Phi; RECO Jet Phi; Number of Events", 50, -3.5, 3.5);
-            histContainer_["Total_RECO_Filter2Background_JetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Background Filter 2", "Background Filter 2; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
+            histContainer_["Total_RECO_Filter2Background_JetPt"] = subDir_Filter2_MatchedJetObservables.make<TH1F>("Background Filter 2", "Background Filter 2; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
 
             subDir_Filter2_TurnOnCurves = subDir_Filter2.mkdir( "Turn On Curves" );
             histContainer_["Filter2_dR"] = subDir_Filter2_TurnOnCurves.make<TH1F>("Filter2_dR","Filter2_dR",310, 0 ,0.31);
-            // distContainer_["Filter2_hltPt_Nhltjets"] = subDir_Filter2_TurnOnCurves.make<TH2F>("Filter2_hltjetpt_nhltjets", "Filter2_hltjetpt_nhltjets, hlt Jet Pt; Filter Obj Jet Pt (GeV); Number of hltjets > 30GeV", xbins, xbinedges, 30, 0, 30);
-            distContainer_["Filter2_hltPt_Nhltjets"] = subDir_Filter2_TurnOnCurves.make<TH2F>("Filter2_hltjetpt_nhltjets", "Filter2_hltjetpt_nhltjets, hlt Jet Pt; Filter Obj Jet Pt (GeV); Number of hltjets > 30GeV", 100, 0, 200, 30, 0, 30);
 
             // 50GeV Jet Filter
             subDir_Filter3 = fileService->mkdir( filter3_.c_str() );
@@ -963,12 +904,10 @@ TriggerAnalyser::beginJob(){
             histContainer_["Filter3_matchedJetPt"] = subDir_Filter3_MatchedJetObservables.make<TH1F>("Filter 3 matched Jet Pt", "Filter 3 matched Jet Pt; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
             histContainer_["Filter3_matchedJetEta"] = subDir_Filter3_MatchedJetObservables.make<TH1F>("Filter 3 matched Jet Eta", "Filter 3 matched Jet Eta; RECO Jet Eta; Number of Events", 50, -3, 3);
             histContainer_["Filter3_matchedJetPhi"] = subDir_Filter3_MatchedJetObservables.make<TH1F>("Filter 3 matched Jet Phi", "Filter 3 matched Jet Phi; RECO Jet Phi; Number of Events", 50, -3.5, 3.5);
-            histContainer_["Total_RECO_Filter3Background_JetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Background Filter 3", "Background Filter 3; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
+            histContainer_["Total_RECO_Filter3Background_JetPt"] = subDir_Filter3_MatchedJetObservables.make<TH1F>("Background Filter 3", "Background Filter 3; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
 
             subDir_Filter3_TurnOnCurves = subDir_Filter3.mkdir( "Turn On Curves" );
             histContainer_["Filter3_dR"] = subDir_Filter3_TurnOnCurves.make<TH1F>("Filter3_dR","Filter3_dR",310, 0 ,0.31);
-            // distContainer_["Filter3_hltPt_Nhltjets"] = subDir_Filter3_TurnOnCurves.make<TH2F>("Filter3_hltjetpt_nhltjets", "Filter3_hltjetpt_nhltjets, hlt Jet Pt; Filter Obj Jet Pt (GeV); Number of hltjets > 30GeV", xbins, xbinedges, 30, 0, 30);
-            distContainer_["Filter3_hltPt_Nhltjets"] = subDir_Filter3_TurnOnCurves.make<TH2F>("Filter3_hltjetpt_nhltjets", "Filter3_hltjetpt_nhltjets, hlt Jet Pt; Filter Obj Jet Pt (GeV); Number of hltjets > 30GeV", 100, 0, 200, 30, 0, 30);
       }
 }
 
@@ -976,70 +915,67 @@ TriggerAnalyser::beginJob(){
 void 
 TriggerAnalyser::endJob(){
       //reco vs trigger object
-      // std::cout << "No pass SL trigger : " << a << std::endl;
-      // std::cout << "No pass X trigger : " << b << std::endl;
-
-      // std::cout << "Conditional Eff : " << b/a << std::endl;
+     
       histContainer_["CondEff"]->Fill(histContainer_["TypeOfEvent"]->GetBinContent(3)/histContainer_["TypeOfEvent"]->GetBinContent(2));
 
 
       // CREATE TRIGGER TURN ON CURVES -------------------------------------------------------------- //
 
-      if ( TEfficiency::CheckConsistency(*histContainer_["CrossTrigger_Pass_JetMultiplicity_20"],*histContainer_["CrossTrigger_Total_JetMultiplicity_20"]) ){
+      if ( TEfficiency::CheckConsistency(*histContainer_["CrossTrigger_Pass_JetMult_20"],*histContainer_["CrossTrigger_Total_JetMult_20"]) ){
 
             TCanvas *c1 = new TCanvas((crosstrigger_ + "_JetMult_20").c_str(),"c1",600,400);
             c1->SetGrid();
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_20"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_JetMultiplicity_20"],histContainer_["CrossTrigger_Total_JetMultiplicity_20"]);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_20"]->SetTitle("Efficiency Plot Jet Multiplicity > 20 GeV; Jet Multiplicity; Efficiency");
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_20"]->SetMarkerColor(4);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_20"]->SetMarkerStyle(21);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_20"]->SetMaximum(1);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_20"]->Draw("AP");
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_20"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_JetMult_20"],histContainer_["CrossTrigger_Total_JetMult_20"]);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_20"]->SetTitle("Efficiency Plot Jet Mult > 20 GeV; Jet Mult; Efficiency");
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_20"]->SetMarkerColor(4);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_20"]->SetMarkerStyle(21);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_20"]->SetMaximum(1);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_20"]->Draw("AP");
             gPad->Update();
             c1->Update();
             c1->Write();
       }
 
-      if ( TEfficiency::CheckConsistency(*histContainer_["CrossTrigger_Pass_JetMultiplicity_30"],*histContainer_["CrossTrigger_Total_JetMultiplicity_30"]) ){
+      if ( TEfficiency::CheckConsistency(*histContainer_["CrossTrigger_Pass_JetMult_30"],*histContainer_["CrossTrigger_Total_JetMult_30"]) ){
 
             TCanvas *c2 = new TCanvas((crosstrigger_ + "_JetMult_30").c_str(),"c2",600,400);
             c2->SetGrid();
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_30"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_JetMultiplicity_30"],histContainer_["CrossTrigger_Total_JetMultiplicity_30"]);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_30"]->SetTitle("Efficiency Plot Jet Multiplicity > 30 GeV; Jet Multiplicity; Efficiency");
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_30"]->SetMarkerColor(4);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_30"]->SetMarkerStyle(21);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_30"]->SetMaximum(1);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_30"]->Draw("AP");
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_30"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_JetMult_30"],histContainer_["CrossTrigger_Total_JetMult_30"]);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_30"]->SetTitle("Efficiency Plot Jet Mult > 30 GeV; Jet Mult; Efficiency");
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_30"]->SetMarkerColor(4);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_30"]->SetMarkerStyle(21);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_30"]->SetMaximum(1);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_30"]->Draw("AP");
             gPad->Update();
             c2->Update();
             c2->Write();
       }
 
-      if ( TEfficiency::CheckConsistency(*histContainer_["CrossTrigger_Pass_JetMultiplicity_40"],*histContainer_["CrossTrigger_Total_JetMultiplicity_40"]) ){
+      if ( TEfficiency::CheckConsistency(*histContainer_["CrossTrigger_Pass_JetMult_40"],*histContainer_["CrossTrigger_Total_JetMult_40"]) ){
 
             TCanvas *c3 = new TCanvas((crosstrigger_ + "_JetMult_40").c_str(),"c2",600,400);
             c3->SetGrid();
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_40"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_JetMultiplicity_40"],histContainer_["CrossTrigger_Total_JetMultiplicity_40"]);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_40"]->SetTitle("Efficiency Plot Jet Multiplicity > 40 GeV; Jet Multiplicity; Efficiency");
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_40"]->SetMarkerColor(4);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_40"]->SetMarkerStyle(21);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_40"]->SetMaximum(1);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_40"]->Draw("AP");
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_40"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_JetMult_40"],histContainer_["CrossTrigger_Total_JetMult_40"]);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_40"]->SetTitle("Efficiency Plot Jet Mult > 40 GeV; Jet Mult; Efficiency");
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_40"]->SetMarkerColor(4);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_40"]->SetMarkerStyle(21);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_40"]->SetMaximum(1);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_40"]->Draw("AP");
             gPad->Update();
             c3->Update();
             c3->Write();
       }
 
-      if ( TEfficiency::CheckConsistency(*histContainer_["CrossTrigger_Pass_JetMultiplicity_50"],*histContainer_["CrossTrigger_Total_JetMultiplicity_50"]) ){
+      if ( TEfficiency::CheckConsistency(*histContainer_["CrossTrigger_Pass_JetMult_50"],*histContainer_["CrossTrigger_Total_JetMult_50"]) ){
 
             TCanvas *c4 = new TCanvas((crosstrigger_ + "_JetMult_50").c_str(),"c4",600,400);
             c4->SetGrid();
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_50"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_JetMultiplicity_50"],histContainer_["CrossTrigger_Total_JetMultiplicity_50"]);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_50"]->SetTitle("Efficiency Plot Jet Multiplicity > 50 GeV; Jet Multiplicity; Efficiency");
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_50"]->SetMarkerColor(4);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_50"]->SetMarkerStyle(21);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_50"]->SetMaximum(1);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMultiplicity_50"]->Draw("AP");
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_50"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_JetMult_50"],histContainer_["CrossTrigger_Total_JetMult_50"]);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_50"]->SetTitle("Efficiency Plot Jet Mult > 50 GeV; Jet Mult; Efficiency");
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_50"]->SetMarkerColor(4);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_50"]->SetMarkerStyle(21);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_50"]->SetMaximum(1);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_JetMult_50"]->Draw("AP");
             gPad->Update();
             c4->Update();
             c4->Write();
@@ -1076,12 +1012,12 @@ TriggerAnalyser::endJob(){
             c6->Write();
       }
 
-      if ( TEfficiency::CheckConsistency(*histContainer_["CrossTrigger_Pass_VertexMultiplicityHist"],*histContainer_["CrossTrigger_Total_VertexMultiplicityHist"]) ){
+      if ( TEfficiency::CheckConsistency(*histContainer_["CrossTrigger_Pass_VertexMultHist"],*histContainer_["CrossTrigger_Total_VertexMultHist"]) ){
 
             TCanvas *c7 = new TCanvas((crosstrigger_ + "_VertMult").c_str(),"c7",600,400);
             c7->SetGrid();
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_VertexMultiplicityHist"],histContainer_["CrossTrigger_Total_VertexMultiplicityHist"]);
-            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"]->SetTitle("Efficiency Plot Vertex Multiplicity; Vertex Multiplicity; Efficiency");
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"] = subDir_TrigDec_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["CrossTrigger_Pass_VertexMultHist"],histContainer_["CrossTrigger_Total_VertexMultHist"]);
+            turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"]->SetTitle("Efficiency Plot Vertex Mult; Vertex Mult; Efficiency");
             turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"]->SetMarkerColor(4);
             turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"]->SetMarkerStyle(21);
             turnOnCurveContainer_["CrossTrigger_TurnOnCurve_Vertices"]->SetMaximum(1);
@@ -1233,11 +1169,11 @@ TriggerAnalyser::endJob(){
 
       if ( hadronicleg_ == "TTBarJet304050" ){
 
-            if ( TEfficiency::CheckConsistency(*histContainer_["Filter1_matchedJetPt"],*histContainer_["Total_RECO_JetPt"]) ){
+            if ( TEfficiency::CheckConsistency(*histContainer_["Filter1_matchedJetPt"],*histContainer_["Total_RECO_Filter1Background_JetPt"]) ){
 
                   TCanvas *c9 = new TCanvas((crosstrigger_ + "_FilterTurnOn_Pt30").c_str(),"c9",600,400);
                   c9->SetGrid();
-                  turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"] = subDir_Filter1_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["Filter1_matchedJetPt"],histContainer_["Total_RECO_JetPt"]);
+                  turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"] = subDir_Filter1_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["Filter1_matchedJetPt"],histContainer_["Total_RECO_Filter1Background_JetPt"]);
                   turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->SetTitle( (filter1_ + " Turn On Jet Pt; RECO Jet Pt (GeV); Efficiency").c_str() );
                   turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->SetMarkerColor(4);
                   turnOnCurveContainer_["Filter1_TurnOnCurve_Pt"]->SetMarkerStyle(21);
@@ -1260,11 +1196,11 @@ TriggerAnalyser::endJob(){
             }
 
 
-            if ( TEfficiency::CheckConsistency(*histContainer_["Filter2_matchedJetPt"],*histContainer_["Filter1_matchedJetPt"]) ){
+            if ( TEfficiency::CheckConsistency(*histContainer_["Filter2_matchedJetPt"],*histContainer_["Total_RECO_Filter2Background_JetPt"]) ){
 
                   TCanvas *c10 = new TCanvas((crosstrigger_ + "_FilterTurnOn_Pt40").c_str(),"c10",600,400);
                   c10->SetGrid();
-                  turnOnCurveContainer_["Filter2_TurnOnCurve_Pt"] = subDir_Filter2_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["Filter2_matchedJetPt"],histContainer_["Filter1_matchedJetPt"]);//CHANGED
+                  turnOnCurveContainer_["Filter2_TurnOnCurve_Pt"] = subDir_Filter2_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["Filter2_matchedJetPt"],histContainer_["Total_RECO_Filter2Background_JetPt"]);//CHANGED
                   turnOnCurveContainer_["Filter2_TurnOnCurve_Pt"]->SetTitle( (filter2_ + " Turn On Jet Pt; RECO Jet Pt (GeV); Efficiency").c_str() );
                   turnOnCurveContainer_["Filter2_TurnOnCurve_Pt"]->SetMarkerColor(4);
                   turnOnCurveContainer_["Filter2_TurnOnCurve_Pt"]->SetMarkerStyle(21);
@@ -1287,11 +1223,11 @@ TriggerAnalyser::endJob(){
             }
 
 
-            if ( TEfficiency::CheckConsistency(*histContainer_["Filter3_matchedJetPt"],*histContainer_["Filter2_matchedJetPt"]) ){
+            if ( TEfficiency::CheckConsistency(*histContainer_["Filter3_matchedJetPt"],*histContainer_["Total_RECO_Filter3Background_JetPt"]) ){
 
                   TCanvas *c11 = new TCanvas((crosstrigger_ + "_FilterTurnOn_Pt50").c_str(),"c11",600,400);
                   c11->SetGrid();
-                  turnOnCurveContainer_["Filter3_TurnOnCurve_Pt"] = subDir_Filter3_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["Filter3_matchedJetPt"],histContainer_["Filter2_matchedJetPt"]);//CHANGED
+                  turnOnCurveContainer_["Filter3_TurnOnCurve_Pt"] = subDir_Filter3_TurnOnCurves.make<TGraphAsymmErrors>(histContainer_["Filter3_matchedJetPt"],histContainer_["Total_RECO_Filter3Background_JetPt"]);//CHANGED
                   turnOnCurveContainer_["Filter3_TurnOnCurve_Pt"]->SetTitle( (filter3_ + " Turn On Jet Pt; RECO Jet Pt (GeV); Efficiency").c_str() );
                   turnOnCurveContainer_["Filter3_TurnOnCurve_Pt"]->SetMarkerColor(4);
                   turnOnCurveContainer_["Filter3_TurnOnCurve_Pt"]->SetMarkerStyle(21);
