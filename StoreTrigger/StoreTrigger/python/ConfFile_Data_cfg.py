@@ -11,10 +11,20 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 1000
 process.source = cms.Source("PoolSource",
     # replace 'myfile.root' with the source file you want to use
     fileNames = cms.untracked.vstring(
-        # DATA Muon
-        'root://xrootd.unl.edu//store/data/Run2015B/SingleMuon/MINIAOD/PromptReco-v1/000/251/168/00000/60FF8405-EA26-E511-A892-02163E01387D.root',
-        # DATA Electron
-        'root://xrootd.unl.edu//store/data/Run2015B/SingleElectron/MINIAOD/PromptReco-v1/000/251/244/00000/12EE24E2-8F27-E511-80D1-02163E013793.root' 
+        # # DATA Muon
+        # 'root://xrootd.unl.edu//store/data/Run2015B/SingleMuon/MINIAOD/PromptReco-v1/000/251/168/00000/60FF8405-EA26-E511-A892-02163E01387D.root',
+        # # DATA Electron
+        # 'root://xrootd.unl.edu//store/data/Run2015B/SingleElectron/MINIAOD/PromptReco-v1/000/251/244/00000/12EE24E2-8F27-E511-80D1-02163E013793.root' 
+
+
+        # DATA Muon 25ns
+        # 'root://xrootd.unl.edu//store/data/Run2015C/SingleMuon/MINIAOD/PromptReco-v1/000/253/890/00000/B0BE6B62-0941-E511-8FBB-02163E014499.root',
+        # 'file:StoreTrigger/data/SingleMuon25ns.root',    
+
+        # DATA Electron 25ns 
+        'root://xrootd.unl.edu//store/data/Run2015C/SingleElectron/MINIAOD/PromptReco-v1/000/254/227/00000/FC7C42C7-C845-E511-9E5F-02163E012460.root'
+        # 'file:StoreTrigger/data/SingleElectron25ns.root',
+
     )
 )  
 
@@ -72,4 +82,4 @@ process.p = cms.Path(
 process.TFileService = cms.Service('TFileService',
     # fileName = cms.string('Trigger_Data_Muon.root'))
     # fileName = cms.string('Trigger_Data_Electron.root'))
-    fileName = cms.string('Trigger_Data.root'))
+    fileName = cms.string('Trigger_Data_25ns.root'))

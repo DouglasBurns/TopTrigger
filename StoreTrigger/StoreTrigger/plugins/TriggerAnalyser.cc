@@ -66,7 +66,7 @@ TriggerAnalyser::~TriggerAnalyser(){
 void
 TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
-      using namespace edm;
+      // using namespace edm;
 
       // std::cout << "In analyze" << std::endl;
       edm::Handle < edm::TriggerResults > triggerResults;
@@ -90,9 +90,8 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
       // EVENT SELECTION AND INDEX STORING ---------------------------------------------------------- //
 
-
       // Perform Event Selection
-      passMockEventSelection = false;
+      passEventSelection = false;
       leadingElectronIndex.clear();
       leadingMuonIndex.clear();
       cleanedJetIndex.clear();
@@ -101,15 +100,14 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       // Tight Electrons
       Index = 0;
       if (electrons->size() != 0){
-            for  (auto lepton = electrons->begin(); lepton != electrons->end(); ++lepton){
+            for (auto lepton = electrons->begin(); lepton != electrons->end(); ++lepton){
                   if (leptontype_ == "Mu20") ptcut=30;
                   if (leptontype_ == "Mu24") ptcut=30;
                   if (leptontype_ == "Ele27") ptcut=30;
                   if (leptontype_ == "Ele32") ptcut=35;
 
-                  if (lepton->pt() < ptcut && abs(lepton->eta()) ) continue;
-                  if (lepton->electronID(electronID_)){
-                        leadingElectronIndex.push_back(Index);
+                  if (lepton->pt() > ptcut && abs(lepton->eta()) < 2.1 ){
+                        if (lepton->electronID(electronID_)) leadingElectronIndex.push_back(Index);
                   }
                   ++Index;
             }
@@ -125,29 +123,14 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
                   if (muons->size() != 0){
                         for (auto lepton = muons->begin(); lepton != muons->end(); ++lepton){
-                              isolated_muon = true;
+
                               if (leptontype_ == "Mu20") ptcut=22;
                               if (leptontype_ == "Mu24") ptcut=27;
                               if (leptontype_ == "Ele27") ptcut=22;
                               if (leptontype_ == "Ele32") ptcut=22;
 
                               if (lepton->pt() > ptcut && abs(lepton->eta()) < 2.1){
-
-                                    if (lepton->isTightMuon(vertex)){
-                                          isolation = ( (lepton->chargedHadronIso() + std::max( lepton->neutralHadronIso() + lepton->photonIso() - 0.5 * lepton->puChargedHadronIso(), 0.) ) / lepton->pt() );
-                                          // std::cout << isolation << std::endl;
-                                          
-                                          // // std::cout << "Muon is Tight" << std::endl;
-                                          // for( auto jet = jets->begin(); jet != jets->end(); ++jet ){
-
-                                          //       if (!isGoodJet(*jet)) continue;
-
-                                          //       if (reco::deltaR2(*lepton, *jet) < 0.09) isolated_muon = false;
-                                                
-                                          // }
-                                          // if (isolated_muon) leadingMuonIndex.push_back(Index);
-                                          if (isolation < 0.12) leadingMuonIndex.push_back(Index);
-                                    }
+                                    if (lepton->isTightMuon(vertex) && isIsolated(*lepton)) leadingMuonIndex.push_back(Index);
                               }
                               ++Index;
                         }
@@ -173,10 +156,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                               for (uint x = 0; x<leadingElectronIndex.size(); ++x){
                                     if ( leadingElectronIndex.size() <= electrons->size() ) continue;
                                     auto lepton = electrons->at(leadingElectronIndex[x]);                              
-                                    double const dR2 = reco::deltaR2(lepton, *jet);
-                                    if (dR2 < 0.3 * 0.3) isMatchedToLepton = true;
-                                    // if (dR2 < 0.3 * 0.3) std::cout << "Woooo! Matched with deltaR : " << dR2 << ", with ele pt of : " << lepton.pt() << " to reco jet pt of : " << jet->pt() << std::endl;
-
+                                    if (reco::deltaR(lepton, *jet) < 0.3) isMatchedToLepton = true;
                               }
                         }
                   
@@ -184,8 +164,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                               for (uint x = 0; x<leadingMuonIndex.size(); ++x){
                                     if ( leadingMuonIndex.size() <= muons->size() ) continue;
                                     auto lepton = muons->at(leadingMuonIndex[x]);                              
-                                    double const dR2 = reco::deltaR2(lepton, *jet);
-                                    if (dR2 < 0.3 * 0.3) isMatchedToLepton = true;
+                                    if (reco::deltaR(lepton, *jet) < 0.3) isMatchedToLepton = true;
                               }
                         }
 
@@ -200,47 +179,32 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             }
       }
 
-      // std::cout << "Jet Index Size : " << cleanedJetIndex.size() << "  Indices : ";
-      // for (uint x = 0; x<cleanedJetIndex.size(); ++x) std::cout << " " << cleanedJetIndex[x];
-      // std::cout << " Pt : ";
-      // for (uint x = 0; x<cleanedJetIndex.size(); ++x){
-      // auto jet = jets->at(cleanedJetIndex[x]);
-      // std::cout << " " << jet.pt();
-      // } 
-      // std::cout << std::endl;
-
-      // std::cout << "Size : " << cleanedBJetIndex.size() << "  Indices : ";
-      // for (uint x = 0; x<cleanedBJetIndex.size(); ++x) std::cout << " " << cleanedBJetIndex[x];
-      // std::cout << std::endl;
-
-
       // Perform an offline event selection
       if (leptonicleg_ == "Ele"){
             if (hadronicleg_ == "SingleTop"){
-                  if (cleanedJetIndex.size() >= 2 && cleanedBJetIndex.size() >= 1 && leadingMuonIndex.size() == 0 && leadingElectronIndex.size() == 1) passMockEventSelection = true;
+                  if (cleanedJetIndex.size() >= 2 && cleanedBJetIndex.size() >= 1 && leadingMuonIndex.size() == 0 && leadingElectronIndex.size() == 1) passEventSelection = true;
             }
              if (hadronicleg_ == "TTBarJet30" || hadronicleg_ == "TTBarJet304050"){
-                  if (cleanedJetIndex.size() >= 4 && cleanedBJetIndex.size() >= 2 && leadingMuonIndex.size() == 0 && leadingElectronIndex.size() == 1) passMockEventSelection = true;
+                  if (cleanedJetIndex.size() >= 4 && cleanedBJetIndex.size() >= 2 && leadingMuonIndex.size() == 0 && leadingElectronIndex.size() == 1) passEventSelection = true;
             }
       }
       if (leptonicleg_ == "Mu"){
             if (hadronicleg_ == "SingleTop"){
-                  if (cleanedJetIndex.size() >= 2 && cleanedBJetIndex.size() >= 1 && leadingMuonIndex.size() == 1 && leadingElectronIndex.size() == 0) passMockEventSelection = true;
+                  if (cleanedJetIndex.size() >= 2 && cleanedBJetIndex.size() >= 1 && leadingMuonIndex.size() == 1 && leadingElectronIndex.size() == 0) passEventSelection = true;
             }
              if (hadronicleg_ == "TTBarJet30" || hadronicleg_ == "TTBarJet304050"){
-                  if (cleanedJetIndex.size() >= 4 && cleanedBJetIndex.size() >= 2 && leadingMuonIndex.size() == 1 && leadingElectronIndex.size() == 0) passMockEventSelection = true;
+                  if (cleanedJetIndex.size() >= 4 && cleanedBJetIndex.size() >= 2 && leadingMuonIndex.size() == 1 && leadingElectronIndex.size() == 0) passEventSelection = true;
             }
       }
 
-
-      // std::cout << "Pass Event Selection : " << passMockEventSelection << std::endl;
-
-      // TRIGGER NAMES ------------------------------------------------------------------------------ //
+      // TRIGGER NAMES ------------------------------------------------------------------------------------ //
+      // std::cout << "Hello??? " << std::endl;
 
       // Find and store indices of the input triggers
       for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
+            // std::cout << "Hello??? " << std::endl;
 
-            // std::cout << "Trigger " << i << " in Menu : " << TrigNames.triggerName(i) << std::endl;
+            std::cout << "Trigger " << i << " in Menu : " << TrigNames.triggerName(i) << std::endl;
             
             if ( TrigNames.triggerName(i).find(singleleptontrigger_) != std::string::npos ) {
                   singleleptonIndex = i;
@@ -251,7 +215,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       }
 
 
-      // TRIGGER RESULTS ---------------------------------------------------------------------------- //
+      // TRIGGER RESULTS ---------------------------------------------------------------------------------- //
 
       SingleLeptonTrigDecision = false;
       CrossTriggerTrigDecision = false;
@@ -259,7 +223,16 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
       TypeOfEvent=0;
       histContainer_["TypeOfEvent"]->Fill(TypeOfEvent);
 
-      if (passMockEventSelection){
+      // if(triggerResults->accept(singleleptonIndex)){
+      //       a++;
+      //       if(triggerResults->accept(crossIndex)){
+      //             b++;
+      //       }
+      // }
+
+      // DIFFERENTIAL EFFICIENCIES ------------------------------------------------------------------------ //
+      if (passEventSelection){
+
             TypeOfEvent=1;
             histContainer_["TypeOfEvent"]->Fill(TypeOfEvent);
 
@@ -270,7 +243,6 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                         histContainer_["TypeOfEvent"]->Fill(TypeOfEvent);
                   }
             }
-            else std::cout << "Exception : Looking for " << singleleptontrigger_ << " but failed" << std::endl;
             
             if ( crossIndex < triggerResults->size() ) {
                   if(triggerResults->accept(crossIndex)){
@@ -279,11 +251,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                         histContainer_["TypeOfEvent"]->Fill(TypeOfEvent);
                   }
             }
-            else std::cout << "Exception : Looking for " << crosstrigger_ << " but failed" << std::endl;
 
-
-            // DIFFERENTIAL EFFICIENCIES ------------------------------------------------------------------ //
-      
 
             // VERTICES ----------------------------------------------------------------------------------- //
 
@@ -293,10 +261,10 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                   vertexMultiplicity += 1;
             }
 
+            histContainer_["CrossTrigger_Total_VertexMultiplicityHist"]->Fill(vertexMultiplicity);
             if (CrossTriggerTrigDecision==true){
                   histContainer_["CrossTrigger_Pass_VertexMultiplicityHist"]->Fill(vertexMultiplicity);
             }
-            histContainer_["CrossTrigger_Total_VertexMultiplicityHist"]->Fill(vertexMultiplicity);
 
 
             // JETS --------------------------------------------------------------------------------------- //
@@ -304,6 +272,7 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             // Select jets and store distributions
             jetMultiplicity_20 = jetMultiplicity_30 = jetMultiplicity_40 = jetMultiplicity_50 = 0;
             HT = 0;
+            ST = 0;
             jetCSV = 0;
             forwardjeteta = 0;
 
@@ -311,19 +280,11 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                   auto jet = jets->at(cleanedJetIndex[Index]);   
 
                   // Number of jets in an event and HT depending on jet pt cut
-                  if ( jet.pt()>20){
-                        ++jetMultiplicity_20;
-                  } 
-                  if ( jet.pt()>30){
-                        ++jetMultiplicity_30;
-                  }
-                  if ( jet.pt()>40){
-                        ++jetMultiplicity_40;
-                  } 
-                  if ( jet.pt()>50){
-                        ++jetMultiplicity_50;
-                  } 
-
+                  if ( jet.pt()>20) ++jetMultiplicity_20;
+                  if ( jet.pt()>30) ++jetMultiplicity_30;
+                  if ( jet.pt()>40) ++jetMultiplicity_40;
+                  if ( jet.pt()>50) ++jetMultiplicity_50;
+                  
                   // HT is the sum of cleaned central jets over 20GeV (No MET or Leptons) for events that pass selection
                   HT += jet.pt();
 
@@ -363,18 +324,18 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
             histContainer_["CrossTrigger_Total_forwardJetEta"]->Fill(forwardjeteta);
             histContainer_["CrossTrigger_Total_HT"]->Fill(HT);  
 
-      
+            ST += HT;
+
+
             // MET ---------------------------------------------------------------------------------------- //
       
             // Store MET of event
             for( auto met = mets->begin(); met != mets->end(); ++met ){ 
-
-                  metEnergy = met->energy();
-
+                  histContainer_["CrossTrigger_Total_METHist"]->Fill(met->energy());
                   if(CrossTriggerTrigDecision==true){
-                        histContainer_["CrossTrigger_Pass_METHist"]->Fill(metEnergy);
+                        histContainer_["CrossTrigger_Pass_METHist"]->Fill(met->energy());
                   }
-            histContainer_["CrossTrigger_Total_METHist"]->Fill(metEnergy);
+                  ST += met->energy();
             }
 
 
@@ -395,8 +356,8 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                         histContainer_["CrossTrigger_Total_LeptonEtaHist"]->Fill(lepton.eta());
                         histContainer_["CrossTrigger_Total_LeptonPhiHist"]->Fill(lepton.phi());
                         histContainer_["CrossTrigger_Total_LeptonEnergyHist"]->Fill(lepton.energy());
+                        ST += lepton.pt();
                   }
-                  if (leadingElectronIndex.size() > 1) std::cout << "Warning : More than 1 lepton has passed event selection" << std::endl;
             }
 
             if ( leptonicleg_ == "Mu" ){
@@ -413,378 +374,362 @@ TriggerAnalyser::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
                         histContainer_["CrossTrigger_Total_LeptonEtaHist"]->Fill(lepton.eta());
                         histContainer_["CrossTrigger_Total_LeptonPhiHist"]->Fill(lepton.phi());
                         histContainer_["CrossTrigger_Total_LeptonEnergyHist"]->Fill(lepton.energy());
+                        ST += lepton.pt();
                   }
-                  if (leadingMuonIndex.size() > 1) std::cout << "Warning : More than 1 lepton has passed event selection" << std::endl;      
             } 
       }
+      // std::cout << "ST : " << ST << std::endl;
+
+      // ST ----------------------------------------------------------------------------------------- //
+
+      histContainer_["CrossTrigger_Total_ST"]->Fill(ST);
+      if(CrossTriggerTrigDecision==true){
+            histContainer_["CrossTrigger_Pass_ST"]->Fill(ST);
+      }
+
+
+
+
+
+
+
 
       // FILTERS: TRIGGER OBJECTS ------------------------------------------------------------------- //
-      // std::cout << "++++++++++++++++++" << std::endl;
-      //If it doesnt pass the mock event selection then it is still considered in filter.
+
       if ( singleleptonIndex < triggerResults->size() ) {
-            if(triggerResults->accept(singleleptonIndex)) {
+            if(triggerResults->accept(singleleptonIndex)) { // Change between single lepton and full hadronic triggers.???
                   SingleLeptonTrigDecision = true;
             }
       }
 
       if (SingleLeptonTrigDecision){
 
-            cleanedRECOJetIndex.clear();
-            isLeadingLepton = false;
-            std::vector<float> leadingLeptonPt;
-            std::vector<float> leadingLeptonEta;
-            leadingLeptonPt.clear();
-            leadingLeptonEta.clear();
+            hltJets.clear();
+            hltBJets.clear();
+            hltLeadingLeptons.clear();
 
-            for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
-                  if (obj.collection() != "hltL3MuonCandidates::HLT" && obj.collection() != "hltEgammaCandidates::HLT") continue;
-                  if ( obj.hasFilterLabel(leptonfilter_)){
-                        leadingLeptonPt.push_back(obj.pt());
-                        leadingLeptonEta.push_back(obj.eta());
-                  } 
+            int N_Filter1_Tags = 0;
+            int N_Filter2_Tags = 0;
+            int N_Filter3_Tags = 0;
+
+            bool passFilter1 = true;
+            bool passFilter2 = true;
+            bool passFilter3 = true;
+
+            // Create hlt object collections
+            for (pat::TriggerObjectStandAlone obj : *triggerObjects) {
+                  if (obj.collection() == "hltPFJetForBtag::HLT") hltBJets.push_back(obj);
+                  if (obj.collection() == "hltAK4PFJetsCorrected::HLT") hltJets.push_back(obj);
+                  if (obj.collection() == "hltL3MuonCandidates::HLT" && obj.hasFilterLabel(leptonfilter_)) hltLeadingLeptons.push_back(obj);
+                  if (obj.collection() == "hltEgammaCandidates::HLT" && obj.hasFilterLabel(leptonfilter_)) hltLeadingLeptons.push_back(obj);
+
+                  if (obj.hasFilterLabel(filter1_)) ++N_Filter1_Tags;
+                  if (obj.hasFilterLabel(filter2_)) ++N_Filter2_Tags;
+                  if (obj.hasFilterLabel(filter3_)) ++N_Filter3_Tags;
             }
+            
+            if ((hadronicleg_ == "TTBarJet304050" || hadronicleg_ == "TTBarJet30") && (N_Filter1_Tags < 3)) passFilter1 = false;
+            if ((hadronicleg_ == "TTBarJet304050") && (N_Filter2_Tags < 2)) passFilter2 = false;
+            if ((hadronicleg_ == "TTBarJet304050") && (N_Filter3_Tags < 1)) passFilter3 = false;
+
+            // if (hadronicleg_ == "TTBarJet304050" ) std::cout << "Event has : " << N_Filter1_Tags << " tricentral>30 tags, " << N_Filter2_Tags << " dicentral>40 tags and " << N_Filter3_Tags << " central>50 tags." << std::endl;
+            // if (hadronicleg_ == "TTBarJet304050" ) std::cout << "Filter 1 : " << passFilter1 << ", Filter 2 : " << passFilter2 << ", Filter 3 : " << passFilter3 << std::endl;
 
 
+            ///////////////////////////////////
+            // Print number of Reco/HLT jets //
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // std::cout << "-----------------" << std::endl;                                                                                   //
+            // std::cout << "Number of hlt Jets : " << hltJets.size() << std::endl;                                                             //
+            // std::cout << "Number of hlt BJets : " << hltBJets.size() << std::endl;                                                           //
+            // std::cout << "Number of hlt leading leptons : " << hltLeadingLeptons.size() << std::endl;                                        //
+            //                                                                                                                                  //
+            // for( auto jet = jets->begin(); jet != jets->end(); ++jet ){                                                                      //
+            //       std::cout << "RECO pt : " << jet->pt() << ", eta : " << jet->eta() << std::endl;                                           //
+            // }                                                                                                                                //
+            // for (uint x = 0; x < hltJets.size(); ++x){                                                                                       //
+            //       std::cout << "hlt pt : " << hltJets[x].pt() << ", eta : " << hltJets[x].eta() << std::endl;                                //
+            // }                                                                                                                                //
+            // for (uint x = 0; x < hltLeadingLeptons.size(); ++x){                                                                             //
+            //       std::cout << "lep pt : " << hltLeadingLeptons[x].pt() << ", eta : " << hltLeadingLeptons[x].eta() << std::endl;            //
+            // }                                                                                                                                //
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-            Index = 0;
-            // bool isMatch;
+            // Clean the RECO jets wrt hlt objects
+            cleanedJets.clear();
             for( auto jet = jets->begin(); jet != jets->end(); ++jet ){
-                  if (isGoodJet(*jet)){
-                        // Looking for HLT Leptons that pass the lepton filter              
-                        bool isMatched=false;
-                        bool isMatchedToHLTJet=false;
+                  if (!isGoodJet(*jet)) continue;
 
-                        for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
-                              if ( obj.collection() == "hltL3MuonCandidates::HLT" || obj.collection() == "hltEgammaCandidates::HLT"){
-                                    if ( obj.hasFilterLabel(leptonfilter_)) {
-                                          if (reco::deltaR2(obj, *jet) < (0.3 * 0.3)) isMatched=true;
-                                    }
-                              }
+                  bool isJetMatched = false;
+                  bool isLeptonMatched = false;
 
-                              else if ( obj.collection() == "hltPFJetForBtag::HLT" || obj.collection() == "hltAK4PFJetsCorrected::HLT"){
-                                    if (reco::deltaR2(obj, *jet) < (0.3 * 0.3)) isMatchedToHLTJet=true;
-                              } //Only include RECO jets that have a matching to an hlt jet filter object.
-                        }
-                        if (!isMatched && isMatchedToHLTJet) cleanedRECOJetIndex.push_back(Index);
-                        // else{
-                        //       std::cout << "Is matched to Lepton : " << isMatched << std::endl 
-                        //       << "Is matched to Jet object : " << isMatchedToHLTJet << std::endl;
-                        // }
+                  for (uint hltjet = 0; hltjet < hltJets.size(); ++hltjet){
+                        if (reco::deltaR(hltJets[hltjet], *jet) < 0.3) isJetMatched = true;
                   }
-                  ++Index;
+                  for (uint hltBjet = 0; hltBjet < hltBJets.size(); ++hltBjet){
+                        if (reco::deltaR(hltBJets[hltBjet], *jet) < 0.3) isJetMatched = true;
+                  }
+
+                  if (reco::deltaR(hltLeadingLeptons[0], *jet) < 0.3) isLeptonMatched = true;//Clean vs leading lepton only - still want to consider secondary leptons as jets
+
+                  if (!isJetMatched || isLeptonMatched) continue;
+
+                  cleanedJets.push_back(*jet);
+                  // if ((hadronicleg_ == "TTBarJet304050" || hadronicleg_ == "TTBarJet30") && (N_Filter1_Tags == 2 || N_Filter1_Tags == 1 ) ) continue;
+
+                  // Fill clean central jets that are matched to a hlt jet object and not matched to a hlt lepton object into histograms
+                  histContainer_["Total_RECO_JetPt"]->Fill(jet->pt());
+                  histContainer_["Total_RECO_JetBTag"]->Fill(-log10(1-jet->bDiscriminator(btagger_)));
+                  histContainer_["Total_RECO_JetCSV"]->Fill(jet->bDiscriminator(btagger_));
             }
 
-            // // Looking for HLT Leptons that pass the lepton filter              
-            // for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
+            //////////////////////////////////////////////////
+            // Compare number of cleaned jets to total jets //
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // std::cout << "Jet size : " << jets->size() << std::endl;                                                                         //
+            // std::cout << "Cleaned jet size : " << cleanedJets.size() << std::endl;                                                           //
+            // for (uint x = 0; x < cleanedJets.size(); ++x){                                                                                   //
+            //       std::cout << "Cleaned jet Pt : " << cleanedJets[x].pt() << std::endl;                                                      //
+            // }                                                                                                                                //
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-            //       // Only clean vs leading lepton
-            //       // if (isLeadingLepton) break;
-            //       if (obj.collection() != "hltL3MuonCandidates::HLT" && obj.collection() != "hltEgammaCandidates::HLT") continue;
+            if (cleanedJets.size() != 0){
 
-            //       // Finds a lepton passing filter
-            //       if ( obj.hasFilterLabel(leptonfilter_)) {
-            //             // std::cout << "Found the leading lepton in the Collection : " << obj.collection() << std::endl;
-            //             // std::cout << "Leading lepton filter object Pt : " << obj.pt() << ", Eta : " << obj.eta() << std::endl;
+                  if (hadronicleg_ == "SingleTop" ){
+                        for (uint recojet = 0; recojet < cleanedJets.size(); ++recojet){
+                              for (uint hltjet = 0; hltjet < hltJets.size(); ++hltjet){
+                                    if (reco::deltaR(cleanedJets[recojet], hltJets[hltjet]) > 0.3) continue;
+                                    if ( hltJets[hltjet].hasFilterLabel(filter1_)){
 
-            //             // Once found stop looking for more leptons
-            //             // isLeadingLepton=true;
-            //             Index = 0;
-            //             for( auto jet = jets->begin(); jet != jets->end(); ++jet ){
-            //                   if (isGoodJet(*jet)){
+                                          histContainer_["Filter1_Pt"]->Fill(hltJets[hltjet].pt());
+                                          histContainer_["Filter1_Eta"]->Fill(hltJets[hltjet].eta());
+                                          histContainer_["Filter1_Phi"]->Fill(hltJets[hltjet].phi());
 
-            //                         // Match leading lepton to current jet and if not matched store jet
-            //                         if (reco::deltaR2(obj, *jet) > (0.3 * 0.3)){
-            //                               // if a jet is not matched (i.e. clean) then add to list of cleaned jets
-            //                               cleanedRECOJetIndex.push_back(Index);
-            //                         }
-            //                         // else{
-            //                         // std::cout << "For : " << leptontype_ << ", Jet of Index : " << Index <<  " is matched with deltaR : " << reco::deltaR2(obj, *jet) << " to obj pt of : " << obj.pt() << ", with reco pt of : " << jet->pt() << std::endl;
-            //                         // }
-            //                   }
-            //                   // else std::cout << "Jet of Index : " << Index << " is not good, Pt : " << jet->pt() << ", Eta : " << jet->eta() << std::endl;
-            //                   ++Index;                                    
-            //             }
-            //       }
-            // }
-
-
-
-            // std::cout << "Size : " << cleanedRECOJetIndex.size() << "  Indices : ";
-            // for (uint x = 0; x<cleanedRECOJetIndex.size(); ++x) std::cout << " " << cleanedRECOJetIndex[x];
-            // std::cout << std::endl;
-
-
-
-
-            if (leadingLeptonPt.size() == 0){
-                  std::cout << "Print Out : No leading lepton found in this event." << std::endl;
-            }
-
-            // if (cleanedRECOJetIndex.size() < 1){
-            //       std::cout << "Print Out : There are no cleaned jets left" << std::endl;
-            // }
-
-            if (cleanedRECOJetIndex.size() != 0){
-
-                  for (uint Index = 0; Index<cleanedRECOJetIndex.size(); ++Index){
-                        auto jet = jets->at(cleanedRECOJetIndex[Index]); 
-
-                        // if (jet.pt() > 30 && jet.pt() < 40) histContainer_["NoJets"]->Fill(0);
-                        // if (jet.pt() > 40 && jet.pt() < 50) histContainer_["NoJets"]->Fill(1);
-                        // if (jet.pt() > 50) histContainer_["NoJets"]->Fill(2);
-
-                        // Fill clean central jets into histograms
-                        histContainer_["Total_RECO_JetPt"]->Fill(jet.pt());
-                        histContainer_["Total_RECO_JetBTag"]->Fill(-log10(1-jet.bDiscriminator(btagger_)));
-                        histContainer_["Total_RECO_JetCSV"]->Fill(jet.bDiscriminator(btagger_));
-
-                        passesFilter1 = false, passesFilter2 = false, passesFilter3 = false;
-                        float minF1dR2 = 9999, minF2dR2 = 9999, minF3dR2 = 9999;
-                        bool pF1 = false, pF2 = false, pF3 = false;
-                        // Find matching filter object,
-                        for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
-
-                              isJetCollection = false;
-                              isBJetCollection = false;
-
-                              if (obj.collection() == "hltPFJetForBtag::HLT") isBJetCollection = true;
-                              if (obj.collection() == "hltAK4PFJetsCorrected::HLT") isJetCollection = true;
-
-
-                              if (!isJetCollection && !isBJetCollection && (obj.hasFilterLabel(filter1_) 
-                                    || obj.hasFilterLabel(filter2_) || obj.hasFilterLabel(filter3_) ) ) 
-                                    std::cout << "Print Out : Filter is in incorrect collection " << obj.collection() << std::endl;
-
-                              if (!isJetCollection && !isBJetCollection) continue;
-                              // By looking through the filter labels (which filters are associated with filter object)
- 
-                              // Make into function?????
-                              if ( hadronicleg_ == "SingleTop" ){
-
-                                    // Keeping the filter objects that match the filters we are interested in
-                                    if ( obj.hasFilterLabel(filter1_) ) {
-
-                                          // Finally the matching takes place and histograms are filled
-                                          double const dR2 = reco::deltaR2(obj, jet);
-                                          histContainer_["DeltaR2 Matching"]->Fill(dR2);
-
-                                          if (dR2 < 0.3 * 0.3){
-                                                // std::cout << "Woooo! Matched with deltaR : " << dR2 << ", with obj pt of : " << 
-                                                // obj.pt() << " to reco pt of : " << jet.pt() << std::endl;
-                                                
-                                                // Store RECO jet only once if it is matched 
-                                                if (!passesFilter1){
-                                                      histContainer_["Filter1_Pt"]->Fill(obj.pt());
-                                                      histContainer_["Filter1_Eta"]->Fill(obj.eta());
-                                                      histContainer_["Filter1_Phi"]->Fill(obj.phi());
-
-                                                      histContainer_["Filter1_matchedJetPt"]->Fill(jet.pt());
-                                                      histContainer_["Filter1_matchedJetEta"]->Fill(jet.eta());
-                                                      histContainer_["Filter1_matchedJetPhi"]->Fill(jet.phi());
-
-                                                      distContainer_["Filter1_TriggerObject_Reco_Pt"]->Fill(obj.pt(),jet.pt());
-                                                                                                            
-                                                }
-                                                passesFilter1 = true;
-                                          }
-                                    }
-                              
-                                    if ( obj.hasFilterLabel(filter2_) ) {
-                                          double const dR2 = reco::deltaR2(obj, jet);
-                                          if (dR2 < 0.3 * 0.3){
-                                                if (!passesFilter2){
-                                                      histContainer_["Filter2_Pt"]->Fill(obj.pt());
-                                                      histContainer_["Filter2_Eta"]->Fill(obj.eta());
-                                                      histContainer_["Filter2_Phi"]->Fill(obj.phi());
-
-                                                      histContainer_["Filter2_matchedJetPt"]->Fill(jet.pt());
-                                                      histContainer_["Filter2_matchedJetEta"]->Fill(jet.eta());
-                                                      histContainer_["Filter2_matchedJetPhi"]->Fill(jet.phi());
-                                                      histContainer_["Filter2_matchedJetBTag"]->Fill(-log10(1-jet.bDiscriminator(btagger_)));
-                                                      histContainer_["Filter2_matchedJetCSV"]->Fill(jet.bDiscriminator(btagger_));
-                                                }
-                                                passesFilter2 = true;
-                                          }
-                                    }
-
-                              }
-                  
-
-                              if ( hadronicleg_ == "TTBarJet30" ){
-
-                                    if ( obj.hasFilterLabel(filter1_) ) {
-
-                                          double const dR2 = reco::deltaR2(obj, jet);
-                                          if (dR2 < 0.3 * 0.3){
-                                                if (!passesFilter1){
-                                                      histContainer_["Filter1_Pt"]->Fill(obj.pt());
-                                                      histContainer_["Filter1_Eta"]->Fill(obj.eta());
-                                                      histContainer_["Filter1_Phi"]->Fill(obj.phi());
-
-                                                      histContainer_["Filter1_matchedJetPt"]->Fill(jet.pt());
-                                                      histContainer_["Filter1_matchedJetEta"]->Fill(jet.eta());
-                                                      histContainer_["Filter1_matchedJetPhi"]->Fill(jet.phi());
-                                                }
-                                                passesFilter1 = true;
-                                          }
+                                          histContainer_["Filter1_matchedJetPt"]->Fill(cleanedJets[recojet].pt());
+                                          histContainer_["Filter1_matchedJetEta"]->Fill(cleanedJets[recojet].eta());
+                                          histContainer_["Filter1_matchedJetPhi"]->Fill(cleanedJets[recojet].phi());
+                                          break;
                                     }
                               }
-                              
 
-                              if (reco::deltaR2(obj, jet) < 0.09 ){
-                                    if (obj.pt() > 30 ) histContainer_["NoJets"]->Fill(0);
-                                    if (obj.pt() > 40 ) histContainer_["NoJets"]->Fill(2);
-                                    if (obj.pt() > 50 ) histContainer_["NoJets"]->Fill(4);
+                              for (uint hltBjet = 0; hltBjet < hltBJets.size(); ++hltBjet){
+                                    if ( reco::deltaR(cleanedJets[recojet], hltBJets[hltBjet]) > 0.3) continue;
+                                    if ( hltBJets[hltBjet].hasFilterLabel(filter2_)){
+
+                                          histContainer_["Filter2_Pt"]->Fill(hltBJets[hltBjet].pt());
+                                          histContainer_["Filter2_Eta"]->Fill(hltBJets[hltBjet].eta());
+                                          histContainer_["Filter2_Phi"]->Fill(hltBJets[hltBjet].phi());
+
+                                          histContainer_["Filter2_matchedJetPt"]->Fill(cleanedJets[recojet].pt());
+                                          histContainer_["Filter2_matchedJetEta"]->Fill(cleanedJets[recojet].eta());
+                                          histContainer_["Filter2_matchedJetPhi"]->Fill(cleanedJets[recojet].phi());
+                                    
+                                          histContainer_["Filter2_matchedJetBTag"]->Fill(-log10(1-cleanedJets[recojet].bDiscriminator(btagger_)));
+                                          histContainer_["Filter2_matchedJetCSV"]->Fill(cleanedJets[recojet].bDiscriminator(btagger_));
+                                          break;
+                                    }
                               }
-                              if ( hadronicleg_ == "TTBarJet304050" ){
+                        }
+                  }
 
-                                    if ( obj.hasFilterLabel(filter1_)) {
+                  if (hadronicleg_ == "TTBarJet30" ){
+                        for (uint recojet = 0; recojet < cleanedJets.size(); ++recojet){
+                              for (uint hltjet = 0; hltjet < hltJets.size(); ++hltjet){
+                                    if ( reco::deltaR(cleanedJets[recojet], hltJets[hltjet]) > 0.3 ) continue;
+                                    if ( !passFilter1 ) continue;
+                                    if ( hltJets[hltjet].hasFilterLabel(filter1_) ){
 
-                                          double const dR2 = reco::deltaR2(obj, jet);
+                                          histContainer_["Filter1_Pt"]->Fill(hltJets[hltjet].pt());
+                                          histContainer_["Filter1_Eta"]->Fill(hltJets[hltjet].eta());
+                                          histContainer_["Filter1_Phi"]->Fill(hltJets[hltjet].phi());
 
-                                          if (jet.pt() > 100 && abs(jet.eta()<2.0) ){
+                                          histContainer_["Filter1_matchedJetPt"]->Fill(cleanedJets[recojet].pt());
+                                          histContainer_["Filter1_matchedJetEta"]->Fill(cleanedJets[recojet].eta());
+                                          histContainer_["Filter1_matchedJetPhi"]->Fill(cleanedJets[recojet].phi());
+                                          break;
+                                    }
+                              }
+                        }
+                  }
+
+                  if (hadronicleg_ == "TTBarJet304050" ){
+
+                        bool pF1, pF2, pF3;
+                        pF1 = pF2 = pF3 = false;
+                        float minF1dR2, minF2dR2, minF3dR2;
+                        minF1dR2 = minF2dR2 = minF3dR2 = 9999;
+
+                        for (uint recojet = 0; recojet < cleanedJets.size(); ++recojet){
+
+
+                              histContainer_["Total_RECO_Filter1Background_JetPt"]->Fill(cleanedJets[recojet].pt());
+                              if (passFilter1) histContainer_["Total_RECO_Filter2Background_JetPt"]->Fill(cleanedJets[recojet].pt());
+                              if (passFilter2) histContainer_["Total_RECO_Filter3Background_JetPt"]->Fill(cleanedJets[recojet].pt());
+
+                              if (cleanedJets[recojet].pt() > 100 && abs(cleanedJets[recojet].eta() < 2.0)){
+                                    for (uint hltjet = 0; hltjet < hltJets.size(); ++hltjet){
+                                          float dR2 = reco::deltaR(cleanedJets[recojet], hltJets[hltjet]);
+                                          if ( hltJets[hltjet].hasFilterLabel(filter1_)){
                                                 if (dR2 < minF1dR2){
                                                       minF1dR2 = dR2;
                                                       pF1 = true;
                                                 }
                                           }
-
-                                          if (dR2 < 0.3 * 0.3){
-
-                                                if (!passesFilter1){
-                                                      histContainer_["NoJets"]->Fill(1);
-                                                      histContainer_["Filter1_Pt"]->Fill(obj.pt());
-                                                      histContainer_["Filter1_Eta"]->Fill(obj.eta());
-                                                      histContainer_["Filter1_Phi"]->Fill(obj.phi());
-
-                                                      histContainer_["Filter1_matchedJetPt"]->Fill(jet.pt());
-                                                      histContainer_["Filter1_matchedJetEta"]->Fill(jet.eta());
-                                                      histContainer_["Filter1_matchedJetPhi"]->Fill(jet.phi());
-                                                }
-                                                passesFilter1 = true;
-                                         }
-                                    }
-
-                                    if (  obj.hasFilterLabel(filter2_) ) {
-
-                                          double const dR2 = reco::deltaR2(obj, jet);
-
-                                          if (jet.pt() > 100 && abs(jet.eta()<2.0) ){
-
+                                          if ( hltJets[hltjet].hasFilterLabel(filter2_)){
                                                 if (dR2 < minF2dR2){
                                                       minF2dR2 = dR2;
                                                       pF2 = true;
                                                 }
-                                          }
-
-                                          if (dR2 < 0.3 * 0.3){
-                                                if (!passesFilter2){
-                                                      histContainer_["NoJets"]->Fill(3);
-                                                      histContainer_["Filter2_Pt"]->Fill(obj.pt());
-                                                      histContainer_["Filter2_Eta"]->Fill(obj.eta());
-                                                      histContainer_["Filter2_Phi"]->Fill(obj.phi());
-
-                                                      histContainer_["Filter2_matchedJetPt"]->Fill(jet.pt());
-                                                      histContainer_["Filter2_matchedJetEta"]->Fill(jet.eta());
-                                                      histContainer_["Filter2_matchedJetPhi"]->Fill(jet.phi());
-                                                }
-                                                passesFilter2 = true;
-                                         }
-                                    }
-
-                                    if ( obj.hasFilterLabel(filter3_) ) {
-
-                                          double const dR2 = reco::deltaR2(obj, jet);
-
-                                          if (jet.pt() > 100 && abs(jet.eta()<2.0) ){
-
+                                          }        
+                                          if ( hltJets[hltjet].hasFilterLabel(filter3_)){
                                                 if (dR2 < minF3dR2){
                                                       minF3dR2 = dR2;
                                                       pF3 = true;
                                                 }
                                           }
-
-                                          if (dR2 < 0.3 * 0.3){
-                                                if (!passesFilter3){
-                                                      histContainer_["NoJets"]->Fill(5);
-                                                      histContainer_["Filter3_Pt"]->Fill(obj.pt());
-                                                      histContainer_["Filter3_Eta"]->Fill(obj.eta());
-                                                      histContainer_["Filter3_Phi"]->Fill(obj.phi());
-
-                                                      histContainer_["Filter3_matchedJetPt"]->Fill(jet.pt());
-                                                      histContainer_["Filter3_matchedJetEta"]->Fill(jet.eta());
-                                                      histContainer_["Filter3_matchedJetPhi"]->Fill(jet.phi());
-                                                }
-                                                passesFilter3 = true;
-                                         }
                                     }
-                              }       
-                        }
+                              }
 
+                              for (uint hltjet = 0; hltjet < hltJets.size(); ++hltjet){
+
+                                    if (reco::deltaR(cleanedJets[recojet], hltJets[hltjet]) > 0.3) continue;
+                                    if (!passFilter1) continue;
+                                    distContainer_["Filter1_hlt_vs_Reco_Pt"]->Fill(hltJets[hltjet].pt(),cleanedJets[recojet].pt());
+
+                                    if ( hltJets[hltjet].hasFilterLabel(filter1_)){
+
+                                          histContainer_["Filter1_Pt"]->Fill(hltJets[hltjet].pt());
+                                          histContainer_["Filter1_Eta"]->Fill(hltJets[hltjet].eta());
+                                          histContainer_["Filter1_Phi"]->Fill(hltJets[hltjet].phi());
+
+                                          histContainer_["Filter1_matchedJetPt"]->Fill(cleanedJets[recojet].pt());
+                                          histContainer_["Filter1_matchedJetEta"]->Fill(cleanedJets[recojet].eta());
+                                          histContainer_["Filter1_matchedJetPhi"]->Fill(cleanedJets[recojet].phi());
+                                          
+                                          // if (passFilter2) histContainer_["Filter1_matchedJetPt_PassFilter2"]->Fill(cleanedJets[recojet].pt());
+
+
+                                          distContainer_["Filter1_hltPt_Nhltjets"]->Fill(hltJets[hltjet].pt(), hltJets.size() );
+                                          
+                                          if (!passFilter2) continue;
+                                          if ( hltJets[hltjet].hasFilterLabel(filter2_)){
+
+                                                histContainer_["Filter2_Pt"]->Fill(hltJets[hltjet].pt());
+                                                histContainer_["Filter2_Eta"]->Fill(hltJets[hltjet].eta());
+                                                histContainer_["Filter2_Phi"]->Fill(hltJets[hltjet].phi());
+
+                                                histContainer_["Filter2_matchedJetPt"]->Fill(cleanedJets[recojet].pt());
+                                                histContainer_["Filter2_matchedJetEta"]->Fill(cleanedJets[recojet].eta());
+                                                histContainer_["Filter2_matchedJetPhi"]->Fill(cleanedJets[recojet].phi());
+
+                                                distContainer_["Filter2_hltPt_Nhltjets"]->Fill(hltJets[hltjet].pt(), hltJets.size() );
+                                                
+                                                if (!passFilter3) continue;
+                                                if ( hltJets[hltjet].hasFilterLabel(filter3_)){
+
+                                                      histContainer_["Filter3_Pt"]->Fill(hltJets[hltjet].pt());
+                                                      histContainer_["Filter3_Eta"]->Fill(hltJets[hltjet].eta());
+                                                      histContainer_["Filter3_Phi"]->Fill(hltJets[hltjet].phi());
+
+                                                      histContainer_["Filter3_matchedJetPt"]->Fill(cleanedJets[recojet].pt());
+                                                      histContainer_["Filter3_matchedJetEta"]->Fill(cleanedJets[recojet].eta());
+                                                      histContainer_["Filter3_matchedJetPhi"]->Fill(cleanedJets[recojet].phi());
+                                          
+                                                      distContainer_["Filter3_hltPt_Nhltjets"]->Fill(hltJets[hltjet].pt(), hltJets.size() );
+
+                                                }
+                                          }
+                                          break;
+                                    }
+                              }
+                        }
                   
-                        
-                        if (pF1) histContainer_["Filter1_dR"]->Fill(minF1dR2);
-                        if (pF2) histContainer_["Filter2_dR"]->Fill(minF2dR2);
-                        if (pF3) histContainer_["Filter3_dR"]->Fill(minF3dR2);
-                  }     
+                        if (pF1){
+                              if (minF1dR2 > 0.3) minF1dR2 = 0.305; // fill overflow bin
+                              histContainer_["Filter1_dR"]->Fill(minF1dR2);
+                        } 
+                        if (pF2){
+                              if (minF2dR2 > 0.3) minF2dR2 = 0.305;
+                              histContainer_["Filter2_dR"]->Fill(minF2dR2);
+                        }                         
+                        if (pF3){
+                              if (minF3dR2 > 0.3) minF3dR2 = 0.305;
+                              histContainer_["Filter3_dR"]->Fill(minF3dR2);
+                        }                   
+                  }
             }
 
+            //////////////////////////////////
+            // Print hlt object information //
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            //                                                                                                                                  //
+            // if  (hadronicleg_ == "TTBarJet304050" ){                                                                                         //
+            //       std::cout << std::endl;                                                                                                    //
+            //       std::cout << "________________________________________" << std::endl;                                                      //
+            //       std::cout << "_______________NEW EVENT________________" << std::endl;                                                      //
+            //                                                                                                                                  //
+            //       std::cout << "Event has : " << hltLeadingLeptons.size() << " leptons passing the filter" << std::endl;                       //                                                                                                                     //
+            //       for (uint hltlep = 0; hltlep < hltLeadingLeptons.size(); ++hltlep){
+            //             std::cout << "Lepton Pt : " << hltLeadingLeptons[hltlep].pt() << ", Lepton Eta : " << hltLeadingLeptons[hltlep].eta() 
+            //             << ", Lepton Phi : " << hltLeadingLeptons[hltlep].phi() << std::endl;          //
+            //       }          
+            //                                                                                                      //
+            //       std::cout << "Event has : " << cleanedJets.size() << " cleaned RECO Jets against all leptons: " << std::endl;            //
+            //       for (uint recojet = 0; recojet<cleanedJets.size(); ++recojet){
+            //             std::cout << "RECOjet Pt : " << cleanedJets[recojet].pt() << ", RECOjet Eta : " << cleanedJets[recojet].eta() 
+            //             << ", RECOjet Phi : " << cleanedJets[recojet].phi() << std::endl;    
+            //       }                                                                                              //
+            //                                                                                                                                  //
+            //       int count1 = 0, count2 = 0, count3 = 0, count4 = 0, count5 = 0, count6 = 0;                                                //
+            //                                                                                                                                  //
+            //       for (pat::TriggerObjectStandAlone obj : *triggerObjects) {                                                                 //
+            //                                                                                                                                  //
+            //             isJetCollection = false;                                                                                             //
+            //             if (obj.collection() == "hltAK4PFJetsCorrected::HLT") isJetCollection = true;                                        //
+            //                                                                                                                                  //
+            //             // Only list for first run through of jets.                                                                          //
+            //             // if (isJetCollection && std::abs(obj.eta()) < 2.6 && obj.pt() > 29.9){  
+            //             if (isJetCollection){                                                //
+            //                                                                                                                                  //
+            //                   std::cout << "__________NEW HLT FILTER OBJ____________" << std::endl;                                          //
+            //                                                                                                                                  //
+            //                   std::cout << "Obj Pt is : " << obj.pt() << ", Obj Eta is : " << obj.eta() << ", Obj Phi is : " << obj.phi() << std::endl;                        //
+            //                   std::cout << "Obj Collection is : " << obj.collection() << std::endl;                                          //
+            //                   std::cout << "Obj Filter Ids are : ";                                                                          //
+            //                   for (unsigned int i = 0; i < obj.filterIds().size(); ++i) std::cout << " " << obj.filterIds()[i];              //
+            //                   std::cout << std::endl;                                                                                        //
+            //                                                                                                                                  //
+            //                   if (obj.pt() > 30) ++count1;                                                                                   //
+            //                   if (obj.pt() > 40) ++count2;                                                                                   //
+            //                   if (obj.pt() > 50) ++count3;                                                                                   //
+            //                                                                                                                                  //
+            //                   if ( obj.hasFilterLabel(filter1_) ) std::cout << "Found filter : " << filter1_                                 //
+            // << "filter" << std::endl, ++count4;                                                                                              //
+            //                   if ( obj.hasFilterLabel(filter2_) ) std::cout << "Found filter : " << filter2_                                 //
+            // << "filter" << std::endl, ++count5;                                                                                              //
+            //                   if ( obj.hasFilterLabel(filter3_) ) std::cout << "Found filter : " << filter3_                                 //
+            // << "filter" << std::endl, ++count6;                                                                                              //
+            //                                                                                                                                  //
+            //             }                                                                                                                    //
+            //       }                                                                                                                          //
+            //                                                                                                                                  //
+            //       std::cout << "________________________________________" << std::endl;                                                      //
+            //       std::cout << "Number of hlt obj jets above 30 GeV : " << count1 << std::endl;                                              //
+            //       std::cout << "Number of 30GeV filter instances found : " << count4 << std::endl;                                           //
+            //       std::cout << "Number of hlt obj jets above 40 GeV : " << count2 << std::endl;                                              //
+            //       std::cout << "Number of 40GeV filter instances found : " << count5 << std::endl;                                           //
+            //       std::cout << "Number of hlt obj jets above 50 GeV : " << count3 << std::endl;                                              //
+            //       std::cout << "Number of 50GeV filter instances found : " << count6 << std::endl;                                           //
+            // }   
+            // if (hltLeadingLeptons.size() > 1) system("read");                                                                                                                             //
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
-            // if  (hadronicleg_ == "TTBarJet304050" ){
-
-            //       std::cout << std::endl << "________________________________________" << std::endl;
-            //       std::cout << "_______________NEW EVENT________________" << std::endl;
-
-            //       std::cout << "Event has : " << leadingLeptonPt.size() << " leptons passing the filter" << std::endl;
-            //       for( uint i=0;i<leadingLeptonPt.size();i++){
-            //             std::cout << "Lepton Pt : " << leadingLeptonPt[i] << ", Lepton Eta : " << leadingLeptonEta[i] << std::endl;
-            //       }
-
-            //       std::cout << "Size of Cleaned RECO Jets against all leptons: " << cleanedRECOJetIndex.size() << "  Indices : ";
-            //       for (uint x = 0; x<cleanedRECOJetIndex.size(); ++x) std::cout << " " << cleanedRECOJetIndex[x];
-            //       std::cout << std::endl;
-
-            //       int count1 = 0, count2 = 0, count3 = 0, count4 = 0, count5 = 0, count6 = 0;
-
-            //       for (pat::TriggerObjectStandAlone obj : *triggerObjects) { 
-
-            //             isJetCollection = false;
-            //             if (obj.collection() == "hltAK4PFJetsCorrected::HLT") isJetCollection = true;
-
-            //             // Only list for first run through of jets.
-            //             if (isJetCollection && std::abs(obj.eta()) < 2.6 && obj.pt() > 20){
-
-            //                   std::cout << "__________NEW HLT FILTER OBJ____________" << std::endl;
-
-            //                   std::cout << "Obj Pt is : " << obj.pt() << ", Obj Eta is : " << obj.eta() << std::endl;
-            //                   std::cout << "Obj Collection is : " << obj.collection() << std::endl;
-            //                   std::cout << "Obj Filter Ids are : ";
-            //                   for (unsigned int i = 0; i < obj.filterIds().size(); ++i) std::cout << " " << obj.filterIds()[i];
-            //                   std::cout << std::endl;
-
-            //                   if (obj.pt() > 30) ++count1;
-            //                   if (obj.pt() > 40) ++count2;
-            //                   if (obj.pt() > 50) ++count3;
-                                    
-            //                   if ( obj.hasFilterLabel(filter1_) ) std::cout << "Found filter : " << filter1_ << "filter" << std::endl, ++count4;
-            //                   if ( obj.hasFilterLabel(filter2_) ) std::cout << "Found filter : " << filter2_ << "filter" << std::endl, ++count5;
-            //                   if ( obj.hasFilterLabel(filter3_) ) std::cout << "Found filter : " << filter3_ << "filter" << std::endl, ++count6;
-                                        
-            //             }
-            //       }
-
-            //       std::cout << "________________________________________" << std::endl;
-            //       std::cout << "Number of hlt obj jets above 30 GeV : " << count1 << std::endl;
-            //       std::cout << "Number of 30GeV filter instances found : " << count4 << std::endl;
-            //       std::cout << "Number of hlt obj jets above 40 GeV : " << count2 << std::endl;
-            //       std::cout << "Number of 40GeV filter instances found : " << count5 << std::endl;
-            //       std::cout << "Number of hlt obj jets above 50 GeV : " << count3 << std::endl;
-            //       std::cout << "Number of 50GeV filter instances found : " << count6 << std::endl;
-            // }
       }
+
+
 }
+
+
 
 bool TriggerAnalyser::isGoodJet(const pat::Jet& jet) const {
 
@@ -816,44 +761,47 @@ bool TriggerAnalyser::isGoodJet(const pat::Jet& jet) const {
             passesJetID = passNHF && passNEMF && passNumConst && passCHF && passCHM && passCEMF && passNumNeutConst;      
       }
 
+      ///////////////////////////////
+      // Whats wrong with the jets //
+      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // if (!passesPtAndEta) std::cout << "Does not pass jet pt/eta requirements" << std::endl;                                                                        //
+      // if (!passesJetID){                                                                                                                                             //   
+      //       std::cout << "Does not pass jet ID because : ";                                                                                                          //
+      //       if (!passNHF) std::cout << "Has not passed Neutral Hadron Energy Fraction < 0.99 : " << jet.neutralHadronEnergyFraction() << std::endl;                  //
+      //       if (!passNEMF) std::cout << "Has not passed Neutral EM Energy Fraction < 0.99 : " << jet.neutralEmEnergyFraction() << std::endl;                         //
+      //       if (!passMUF) std::cout << "Has not passed muon Energy Fraction < 0.8 : " << jet.muonEnergyFraction() << std::endl;                                      //
+      //       if (!passNumConst) std::cout << "Has not passed Number of Constituents > 1: " << jet.chargedMultiplicity()+jet.neutralMultiplicity() << std::endl;       //
+      //       if (!passCHF) std::cout << "Has not passed Charged Hadron Energy Fraction > 0. : " << jet.chargedHadronEnergyFraction() << std::endl;                    //
+      //       if (!passCHM) std::cout << "Has not passed Charged Multiplicity > 0 : " << jet.chargedMultiplicity() << std::endl;                                       //
+      //       if (!passCEMF) std::cout << "Has not passed Charged EM Energy Fraction < 0.99 : " << jet.chargedEmEnergyFraction() << std::endl;                         //
+      // }                                                                                                                                                              //
+      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-      // if (!passesPtAndEta) std::cout << "Does not pass jet pt/eta requirements" << std::endl;
-      // if (!passesJetID){
-      //       std::cout << "Does not pass jet ID because : ";
-      //       if (!passNHF) std::cout << "Has not passed Neutral Hadron Energy Fraction < 0.99 : " << jet.neutralHadronEnergyFraction() << std::endl;
-      //       if (!passNEMF) std::cout << "Has not passed Neutral EM Energy Fraction < 0.99 : " << jet.neutralEmEnergyFraction() << std::endl;
-      //       if (!passMUF) std::cout << "Has not passed muon Energy Fraction < 0.8 : " << jet.muonEnergyFraction() << std::endl;
-      //       if (!passNumConst) std::cout << "Has not passed Number of Constituents > 1: " << jet.chargedMultiplicity()+jet.neutralMultiplicity() << std::endl;
-      //       if (!passCHF) std::cout << "Has not passed Charged Hadron Energy Fraction > 0. : " << jet.chargedHadronEnergyFraction() << std::endl;
-      //       if (!passCHM) std::cout << "Has not passed Charged Multiplicity > 0 : " << jet.chargedMultiplicity() << std::endl;
-      //       if (!passCEMF) std::cout << "Has not passed Charged EM Energy Fraction < 0.99 : " << jet.chargedEmEnergyFraction() << std::endl;
-      // }
-      return passesPtAndEta && passesJetID;
-     
+      return passesPtAndEta && passesJetID;    
+}
+
+// is the muon isolated?
+bool TriggerAnalyser::isIsolated(const pat::Muon& muon) const {
+      bool passesIsolation(false);
+      float isolation = ( (muon.chargedHadronIso() + std::max( muon.neutralHadronIso() + muon.photonIso() - 0.5 * muon.puChargedHadronIso(), 0.) ) / muon.pt() );
+      if (isolation < 0.12) passesIsolation = true;
+      return passesIsolation;    
 }
 
 // ------------ method called once each job just before starting event loop  ------------
 void 
 TriggerAnalyser::beginJob(){
-
-
-
-
-
+      // a= b = 0;
       // INITIALISE DIRECTORIES AND HISTOGRAMS ------------------------------------------------------ //
 
       subDir_TrigDec = fileService->mkdir( "Trigger Decision" );
 
       histContainer_["TypeOfEvent"] = subDir_TrigDec.make<TH1F>("TypeOfEvent", "Type of Event; Total/Selection/SingleLepton/Cross; Number of Events", 4, -0.5, 3.5);
-      // histContainer_["TypeOfEvent"] = subDir_TrigDec.make<TH1F>("TypeOfEvent", "Type of Event; Total/Selection/SingleLepton/Cross; Number of Events", 6, -2.5, 3.5);
+      histContainer_["TypeOfEvent"]->GetXaxis()->SetBinLabel(1, "Total Events");
+      histContainer_["TypeOfEvent"]->GetXaxis()->SetBinLabel(3, "Pass Single Lepton Trigger");
+      histContainer_["TypeOfEvent"]->GetXaxis()->SetBinLabel(4, "Pass Cross Trigger");
+      histContainer_["TypeOfEvent"]->GetXaxis()->SetBinLabel(2, "Pass Event Selection");
       histContainer_["CondEff"] = subDir_TrigDec.make<TH1F>("ConditionalEff", "Conditional Efficiency; Efficiency; ", 100, 0, 1);
-      histContainer_["NoJets"] = subDir_TrigDec.make<TH1F>("NoJets", "NoJets; Jet Pt Category; ", 6, -0.5, 5.5);
-      histContainer_["NoJets"]->GetXaxis()->SetBinLabel(1, "Jets >30");
-      histContainer_["NoJets"]->GetXaxis()->SetBinLabel(2, "Jets >30+PF");
-      histContainer_["NoJets"]->GetXaxis()->SetBinLabel(3, "Jets >40");
-      histContainer_["NoJets"]->GetXaxis()->SetBinLabel(4, "Jets >40+PF");
-      histContainer_["NoJets"]->GetXaxis()->SetBinLabel(5, "Jets >50");
-      histContainer_["NoJets"]->GetXaxis()->SetBinLabel(6, "Jets >50+PF");
 
       subDir_TrigDec_TurnOnCurves = subDir_TrigDec.mkdir( "Trigger Turn On Curves" );
 
@@ -877,6 +825,8 @@ TriggerAnalyser::beginJob(){
       histContainer_["CrossTrigger_Total_JetMultiplicity_50"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_JetMultiplicity_50", "Total_JetMultiplicity_50; RECO Jet Multiplicity; Number of Events", 15, 0, 15);
       histContainer_["CrossTrigger_Pass_HT"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_HT", "Pass_HT; RECO Jet HT (GeV); Number of Events", 50, 0, 700);
       histContainer_["CrossTrigger_Total_HT"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_HT", "Total_HT; RECO Jet HT (GeV); Number of Events", 50, 0, 700);
+      histContainer_["CrossTrigger_Pass_ST"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_ST", "Pass_ST; RECO Jet ST (GeV); Number of Events", 50, 0, 1000);
+      histContainer_["CrossTrigger_Total_ST"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_ST", "Total_ST; RECO Jet ST (GeV); Number of Events", 50, 0, 1000);
       histContainer_["CrossTrigger_Pass_greatestBtag"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_GreatestBtag", "Pass_GreatestBtag; Greatest RECO Jet pfCSVv2; Number of Events", 100, 0, 1);
       histContainer_["CrossTrigger_Total_greatestBtag"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Total_GreatestBtag", "Total_GreatestBtag; Greatest RECO Jet pfCSVv2; Number of Events;", 100, 0, 1);     
       histContainer_["CrossTrigger_Pass_forwardJetEta"] = subDir_Observables_Jet.make<TH1F>("CrossTrigger_Pass_forwardJetEta", "Pass_ForwardJetEta; Forward RECO Jet Eta; Number of Events", 100, 0, 3);
@@ -919,9 +869,6 @@ TriggerAnalyser::beginJob(){
             histContainer_["Filter1_matchedJetEta"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Eta", "Filter 1 matched Jet Eta; RECO Jet Eta; Number of Events", 50, -3, 3);
             histContainer_["Filter1_matchedJetPhi"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Phi", "Filter 1 matched Jet Phi; RECO Jet Phi; Number of Events", 50, -3.5, 3.5);
             
-            distContainer_["Filter1_TriggerObject_Reco_Pt"] = subDir_Filter1_MatchedJetObservables.make<TH2F>("Matching", "Filter Object, Matched RECO Jet Pt; Filter Obj Jet Pt (GeV); RECO Jet Pt (GeV)", 50, 0, 200, 50, 0, 200);//cndjschdjkshcjkdnsk
-            histContainer_["DeltaR2 Matching"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("DeltaR","DeltaR2 Distribution; DeltaR2; Number of Events", 150, 0, 4);
-
             subDir_Filter1_TurnOnCurves = subDir_Filter1.mkdir( "Turn On Curves" );
 
             // CSV Filter
@@ -964,6 +911,9 @@ TriggerAnalyser::beginJob(){
             // 30GeV Jet Filter
             subDir_Filter1 = fileService->mkdir( filter1_.c_str() );
 
+            // const Int_t xbins = 4;
+            // Double_t xbinedges[xbins + 1] = {0, 30, 40, 50, 200};
+
             subDir_Filter1_Observables = subDir_Filter1.mkdir( "Filter Observables" );
             histContainer_["Filter1_Pt"] = subDir_Filter1_Observables.make<TH1F>("Pt", "Pt", 50, 0, 200);
             histContainer_["Filter1_Eta"] = subDir_Filter1_Observables.make<TH1F>("Eta", "Eta", 50, -3, 3);
@@ -973,10 +923,15 @@ TriggerAnalyser::beginJob(){
             histContainer_["Filter1_matchedJetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Pt", "Filter 1 matched Jet Pt; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
             histContainer_["Filter1_matchedJetEta"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Eta", "Filter 1 matched Jet Eta; RECO Jet Eta; Number of Events", 50, -3, 3);
             histContainer_["Filter1_matchedJetPhi"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Phi", "Filter 1 matched Jet Phi; RECO Jet Phi; Number of Events", 50, -3.5, 3.5);
+            histContainer_["Filter1_matchedJetPt_PassFilter2"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Filter 1 matched Jet Pt Pass Filter 2", "Filter 1 matched Jet Pt Pass Filter 2; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
+            histContainer_["Total_RECO_Filter1Background_JetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Background Filter 1", "Background Filter 1; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
 
             subDir_Filter1_TurnOnCurves = subDir_Filter1.mkdir( "Turn On Curves" );
-            histContainer_["Filter1_dR"] = subDir_Filter1_TurnOnCurves.make<TH1F>("Filter1_dR","Filter1_dR",100, 0 ,0.010);
-            
+            histContainer_["Filter1_dR"] = subDir_Filter1_TurnOnCurves.make<TH1F>("Filter1_dR","Filter1_dR",310, 0 ,0.31);
+            distContainer_["Filter1_hlt_vs_Reco_Pt"] = subDir_Filter1_TurnOnCurves.make<TH2F>("Matching", "Filter Object, Matched RECO Jet Pt; Filter Obj Jet Pt (GeV); RECO Jet Pt (GeV)", 50, 0, 200, 50, 0, 200);//cndjschdjkshcjkdnsk
+            // distContainer_["Filter1_hltPt_Nhltjets"] = subDir_Filter1_TurnOnCurves.make<TH2F>("Filter1_hltjetpt_nhltjets", "Filter1_hltjetpt_nhltjets, hlt Jet Pt; Filter Obj Jet Pt (GeV); Number of hltjets > 30GeV", xbins, xbinedges, 30, 0, 30);
+            distContainer_["Filter1_hltPt_Nhltjets"] = subDir_Filter1_TurnOnCurves.make<TH2F>("Filter1_hltjetpt_nhltjets", "Filter1_hltjetpt_nhltjets, hlt Jet Pt; Filter Obj Jet Pt (GeV); Number of hltjets > 30GeV", 100, 0, 200, 30, 0, 30);
+
             // 40GeV Jet Filter
             subDir_Filter2 = fileService->mkdir( filter2_.c_str() );
 
@@ -989,9 +944,12 @@ TriggerAnalyser::beginJob(){
             histContainer_["Filter2_matchedJetPt"] = subDir_Filter2_MatchedJetObservables.make<TH1F>("Filter 2 matched Jet Pt", "Filter 2 matched Jet Pt; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
             histContainer_["Filter2_matchedJetEta"] = subDir_Filter2_MatchedJetObservables.make<TH1F>("Filter 2 matched Jet Eta", "Filter 2 matched Jet Eta; RECO Jet Eta; Number of Events", 50, -3, 3);
             histContainer_["Filter2_matchedJetPhi"] = subDir_Filter2_MatchedJetObservables.make<TH1F>("Filter 2 matched Jet Phi", "Filter 2 matched Jet Phi; RECO Jet Phi; Number of Events", 50, -3.5, 3.5);
+            histContainer_["Total_RECO_Filter2Background_JetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Background Filter 2", "Background Filter 2; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
 
             subDir_Filter2_TurnOnCurves = subDir_Filter2.mkdir( "Turn On Curves" );
-            histContainer_["Filter2_dR"] = subDir_Filter2_TurnOnCurves.make<TH1F>("Filter2_dR","Filter2_dR",100, 0 ,0.010);
+            histContainer_["Filter2_dR"] = subDir_Filter2_TurnOnCurves.make<TH1F>("Filter2_dR","Filter2_dR",310, 0 ,0.31);
+            // distContainer_["Filter2_hltPt_Nhltjets"] = subDir_Filter2_TurnOnCurves.make<TH2F>("Filter2_hltjetpt_nhltjets", "Filter2_hltjetpt_nhltjets, hlt Jet Pt; Filter Obj Jet Pt (GeV); Number of hltjets > 30GeV", xbins, xbinedges, 30, 0, 30);
+            distContainer_["Filter2_hltPt_Nhltjets"] = subDir_Filter2_TurnOnCurves.make<TH2F>("Filter2_hltjetpt_nhltjets", "Filter2_hltjetpt_nhltjets, hlt Jet Pt; Filter Obj Jet Pt (GeV); Number of hltjets > 30GeV", 100, 0, 200, 30, 0, 30);
 
             // 50GeV Jet Filter
             subDir_Filter3 = fileService->mkdir( filter3_.c_str() );
@@ -1005,10 +963,12 @@ TriggerAnalyser::beginJob(){
             histContainer_["Filter3_matchedJetPt"] = subDir_Filter3_MatchedJetObservables.make<TH1F>("Filter 3 matched Jet Pt", "Filter 3 matched Jet Pt; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
             histContainer_["Filter3_matchedJetEta"] = subDir_Filter3_MatchedJetObservables.make<TH1F>("Filter 3 matched Jet Eta", "Filter 3 matched Jet Eta; RECO Jet Eta; Number of Events", 50, -3, 3);
             histContainer_["Filter3_matchedJetPhi"] = subDir_Filter3_MatchedJetObservables.make<TH1F>("Filter 3 matched Jet Phi", "Filter 3 matched Jet Phi; RECO Jet Phi; Number of Events", 50, -3.5, 3.5);
+            histContainer_["Total_RECO_Filter3Background_JetPt"] = subDir_Filter1_MatchedJetObservables.make<TH1F>("Background Filter 3", "Background Filter 3; RECO Jet Pt (GeV); Number of Events", 100, 0, 200);
 
             subDir_Filter3_TurnOnCurves = subDir_Filter3.mkdir( "Turn On Curves" );
-            histContainer_["Filter3_dR"] = subDir_Filter3_TurnOnCurves.make<TH1F>("Filter3_dR","Filter2_dR",100, 0 ,0.010);
-
+            histContainer_["Filter3_dR"] = subDir_Filter3_TurnOnCurves.make<TH1F>("Filter3_dR","Filter3_dR",310, 0 ,0.31);
+            // distContainer_["Filter3_hltPt_Nhltjets"] = subDir_Filter3_TurnOnCurves.make<TH2F>("Filter3_hltjetpt_nhltjets", "Filter3_hltjetpt_nhltjets, hlt Jet Pt; Filter Obj Jet Pt (GeV); Number of hltjets > 30GeV", xbins, xbinedges, 30, 0, 30);
+            distContainer_["Filter3_hltPt_Nhltjets"] = subDir_Filter3_TurnOnCurves.make<TH2F>("Filter3_hltjetpt_nhltjets", "Filter3_hltjetpt_nhltjets, hlt Jet Pt; Filter Obj Jet Pt (GeV); Number of hltjets > 30GeV", 100, 0, 200, 30, 0, 30);
       }
 }
 
@@ -1016,12 +976,14 @@ TriggerAnalyser::beginJob(){
 void 
 TriggerAnalyser::endJob(){
       //reco vs trigger object
+      // std::cout << "No pass SL trigger : " << a << std::endl;
+      // std::cout << "No pass X trigger : " << b << std::endl;
 
-      histContainer_["CondEff"]->Fill(histContainer_["TypeOfEvent"]->GetBinContent(4)/histContainer_["TypeOfEvent"]->GetBinContent(3));
-      // histContainer_["CondEff"]->Fill(histContainer_["TypeOfEvent"]->GetBinContent(5)/histContainer_["TypeOfEvent"]->GetBinContent(4));
+      // std::cout << "Conditional Eff : " << b/a << std::endl;
+      histContainer_["CondEff"]->Fill(histContainer_["TypeOfEvent"]->GetBinContent(3)/histContainer_["TypeOfEvent"]->GetBinContent(2));
+
 
       // CREATE TRIGGER TURN ON CURVES -------------------------------------------------------------- //
-
 
       if ( TEfficiency::CheckConsistency(*histContainer_["CrossTrigger_Pass_JetMultiplicity_20"],*histContainer_["CrossTrigger_Total_JetMultiplicity_20"]) ){
 
@@ -1213,7 +1175,7 @@ TriggerAnalyser::endJob(){
                   c10->Write();
             }
 
-            if ( TEfficiency::CheckConsistency(*histContainer_["Filter2_matchedJetBTag"],*histContainer_["Total_RECO_JetBTag"]) ){
+            if ( TEfficiency::CheckConsistency(*histContainer_["Filter2_matchedJetCSV"],*histContainer_["Total_RECO_JetCSV"]) ){
 
                   TCanvas *c11 = new TCanvas((crosstrigger_ + "_FilterTurnOn_CSV").c_str(),"c11",600,400);
                   c11->SetGrid();
